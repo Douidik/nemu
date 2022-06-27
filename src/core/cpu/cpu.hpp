@@ -1,8 +1,8 @@
 #ifndef NEMU_CPU_HPP
 #define NEMU_CPU_HPP
 
+#include "disasm.hpp"
 #include "hardware.hpp"
-#include "instructions.hpp"
 #include "interrupt.hpp"
 #include "registers.hpp"
 #include <optional>
@@ -19,6 +19,10 @@ public:
   void irq();
   void nmi();
 
+  inline const auto &disasm() const {
+    return m_disasm;
+  }
+
   inline const auto &registers() const {
     return m_regs;
   }
@@ -27,15 +31,15 @@ public:
     return m_cycles_remaining;
   }
 
-  inline uint32 cycles_counter() const {
-    return m_cycles_counter;
+  inline uint32 instruction_counter() const {
+    return m_instruction_counter;
   }
 
 private:
   uint16 interrupt(Interrupt interrupt, uint16 pc);
 
   void parse_instruction(Instruction instruction);
-  std::optional<uint8> execute_operation(Instruction instruction, uint8 operand);
+  auto execute_operation(Instruction instruction, uint16 operand) -> std::optional<uint8>;
 
   uint16 read_operand_address(Instruction instruction);
   uint8 parse_operand(uint8 operand);
@@ -47,8 +51,9 @@ private:
   uint8 stack_push(uint8 data);
   uint8 stack_pop();
 
+  Disasm m_disasm;
   CpuRegisters m_regs;
-  uint32 m_cycles_remaining, m_cycles_counter;
+  uint32 m_cycles_remaining, m_instruction_counter;
 };
 
 }  // namespace nemu

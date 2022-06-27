@@ -24,18 +24,15 @@ namespace {
     [0x29] = {AND, IMM, 2}, [0x25] = {AND, ZER, 3}, [0x35] = {AND, ZPX, 4}, [0x2D] = {AND, ABS, 4},
     [0x3D] = {AND, ABX, 4}, [0x39] = {AND, ABY, 4}, [0x21] = {AND, IDX, 6}, [0x31] = {AND, IDY, 5},
 
-    [0x0A] = {ASL, IMP, 2}, [0x06] = {ASL, ZER, 5}, [0x16] = {ASL, ZPX, 6}, [0x0E] = {ASL, ABS, 6},
+    [0x0A] = {ASL, ACC, 2}, [0x06] = {ASL, ZER, 5}, [0x16] = {ASL, ZPX, 6}, [0x0E] = {ASL, ABS, 6},
     [0x1E] = {ASL, ABX, 7},
 
-    [0x90] = {BCC, REL, 2}, [0xB0] = {BCS, REL, 2}, [0xF0] = {BEQ, REL, 2},
+    [0x90] = {BCC, REL, 2}, [0xB0] = {BCS, REL, 2}, [0xF0] = {BEQ, REL, 2}, [0x30] = {BMI, REL, 2},
+    [0xD0] = {BNE, REL, 2}, [0x10] = {BPL, REL, 2}, [0x50] = {BVC, REL, 2}, [0x70] = {BVS, REL, 2},
 
     [0x24] = {BIT, ZER, 3}, [0x2C] = {BIT, ABS, 4},
 
-    [0xD0] = {BNE, REL, 2}, [0x10] = {BPL, REL, 2},
-
     [0x00] = {BRK, IMP, 7},
-
-    [0x50] = {BVC, REL, 2}, [0x70] = {BVS, REL, 2},
 
     [0x18] = {CLC, IMP, 2}, [0xD8] = {CLD, IMP, 2}, [0x58] = {CLI, IMP, 2}, [0xB8] = {CLV, IMP, 2},
 
@@ -70,7 +67,7 @@ namespace {
     [0xA0] = {LDY, IMM, 2}, [0xA4] = {LDY, ZER, 3}, [0xB4] = {LDY, ZPX, 4}, [0xAC] = {LDY, ABS, 4},
     [0xBC] = {LDY, ABX, 4},
 
-    [0x4A] = {LSR, IMM, 2}, [0x46] = {LSR, ZER, 5}, [0x56] = {LSR, ZPX, 6}, [0x4E] = {LSR, ABS, 6},
+    [0x4A] = {LSR, ACC, 2}, [0x46] = {LSR, ZER, 5}, [0x56] = {LSR, ZPX, 6}, [0x4E] = {LSR, ABS, 6},
     [0x5E] = {LSR, ABX, 7},
 
     [0xEA] = {NOP, IMP, 2},
@@ -82,10 +79,10 @@ namespace {
 
     [0x68] = {PLA, IMP, 4}, [0x28] = {PLP, IMP, 4},
 
-    [0X2A] = {ROL, IMM, 2}, [0x26] = {ROL, ZER, 5}, [0x36] = {ROL, ZPX, 6}, [0x2E] = {ROL, ABS, 6},
+    [0x2A] = {ROL, ACC, 2}, [0x26] = {ROL, ZER, 5}, [0x36] = {ROL, ZPX, 6}, [0x2E] = {ROL, ABS, 6},
     [0x3E] = {ROL, ABX, 7},
 
-    [0X6A] = {ROR, IMM, 2}, [0x66] = {ROR, ZER, 5}, [0x76] = {ROR, ZPX, 6}, [0x6E] = {ROR, ABS, 6},
+    [0x6A] = {ROR, ACC, 2}, [0x66] = {ROR, ZER, 5}, [0x76] = {ROR, ZPX, 6}, [0x6E] = {ROR, ABS, 6},
     [0x7E] = {ROR, ABX, 7},
 
     [0x40] = {RTI, IMP, 6}, [0x60] = {RTS, IMP, 6},

@@ -13,7 +13,7 @@ enum class Mirror : uint8 {
 };
 
 struct RomMeta {
-  // _# are ignored fields, might be used for advanced emulation
+  // _# are ignored fields, might be used for more advanced emulation
 
   char magic[4];
   uint8 program_pages;
@@ -30,12 +30,11 @@ struct RomMeta {
 
 class Rom {
 public:
+  Rom() {}
   explicit Rom(std::span<uint8> data);
 
   uint8 cpu_write(uint16 n, uint8 data);
   uint8 cpu_read(uint16 n);
-
-  uint8 ppu_write(uint16 n, uint8 data);
   uint8 ppu_read(uint16 n);
 
   inline const auto &meta() const {

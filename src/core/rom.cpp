@@ -8,7 +8,7 @@ namespace nemu {
 Rom::Rom(std::span<uint8> data) {
   memcpy(&m_meta, &data[0], sizeof(RomMeta));
 
-  if (std::string_view {m_meta.magic, 4} != "Nes\x1a") {
+  if (std::string_view {m_meta.magic, 4} != "NES\x1a") {
     throw Exception {"ROM format must be iNES standard"};
   }
 
@@ -37,10 +37,6 @@ uint8 Rom::cpu_write(uint16 n, uint8 data) {
 
 uint8 Rom::cpu_read(uint16 n) {
   return m_program[m_mapper->map_program(n)];
-}
-
-uint8 Rom::ppu_write(uint16 n, uint8 data) {
-  return m_character[m_mapper->map_character(n)] = data;
 }
 
 uint8 Rom::ppu_read(uint16 n) {

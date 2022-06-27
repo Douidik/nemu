@@ -46,7 +46,7 @@ union PpuAddress {
     uint8 fine_y : 3;
   };
 
-  uint16 raw;
+  uint16 bits;
 };
 
 struct PpuRegisters {

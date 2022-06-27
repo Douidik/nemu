@@ -15,8 +15,9 @@ target_include_directories(
 target_link_libraries(
   nemu PUBLIC
   nemu_core
-  sfml-graphics
+  SDL2
   fmt::fmt
+  sdata
 )
 
 set_target_properties(
