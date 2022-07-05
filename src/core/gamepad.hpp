@@ -2,7 +2,7 @@
 #define NEMU_GAMEPAD_HPP
 
 #include "hardware.hpp"
-#include "int.hpp"
+#include <sdata.hpp>
 
 namespace nemu {
 
@@ -30,10 +30,35 @@ public:
     return m_bits;
   }
 
+  uint8 cpu_write(uint16 n, uint8 data);
+  uint8 cpu_read(uint16 n);
+
+  inline auto zip() {
+    return std::forward_as_tuple(m_bits, m_shift, m_strobe);
+  }
+
 private:
-  uint8 m_bits;
+  uint8 m_bits, m_shift, m_strobe;
 };
 
 }  // namespace nemu
+
+namespace sdata {
+using namespace nemu;
+
+template<>
+struct Serializer<Gamepad> : Scheme<Gamepad(uint8, uint8, uint8)> {
+  Map map(Gamepad &gamepad) {
+    auto [bits, shift, strobe] = gamepad.zip();
+
+    return {
+      {"bits", bits},
+      {"shift", shift},
+      {"strobe", strobe},
+    };
+  }
+};
+
+}  // namespace sdata
 
 #endif

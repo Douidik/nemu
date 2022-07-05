@@ -3,6 +3,7 @@
 
 #include "int.hpp"
 #include <fmt/format.h>
+#include <sdata.hpp>
 
 namespace nemu {
 
@@ -22,8 +23,11 @@ struct CpuRegisters {
 
 }  // namespace nemu
 
+namespace fmt {
+using namespace nemu;
+
 template<>
-struct fmt::formatter<nemu::CpuRegisters> {
+struct formatter<CpuRegisters> {
   constexpr static std::string_view FLAGS = "NVUBDIZC";
 
   template<typename P>
@@ -33,16 +37,16 @@ struct fmt::formatter<nemu::CpuRegisters> {
 
   template<typename F>
   auto
-  format_register(std::string_view name, nemu::uint16 reg, nemu::uint8 width, F &context) const {
+  format_register(std::string_view name, uint16 reg, uint8 width, F &context) const {
     return format_to(context.out(), "| {}: ${:0{}X} |", name, reg, width);
   }
 
   // Format status registers: CZIDBUVN, '_' means disabled
   template<typename F>
-  auto format_status(nemu::CpuStatus status, F &context) const {
+  auto format_status(CpuStatus status, F &context) const {
     char output[] = "| FL: ________ |", *iter = &output[6];
 
-    for (nemu::uint8 n = 0; n < FLAGS.size(); n++) {
+    for (uint8 n = 0; n < FLAGS.size(); n++) {
       *iter++ = status.bits & (0x80 >> n) ? FLAGS[n] : '_';
     }
 
@@ -50,7 +54,7 @@ struct fmt::formatter<nemu::CpuRegisters> {
   }
 
   template<typename F>
-  constexpr auto format(const nemu::CpuRegisters &registers, F &context) const {
+  constexpr auto format(const CpuRegisters &registers, F &context) const {
     format_register("A", registers.a, 2, context);
     format_register("X", registers.x, 2, context);
     format_register("Y", registers.y, 2, context);
@@ -62,5 +66,26 @@ struct fmt::formatter<nemu::CpuRegisters> {
     return context.out();
   }
 };
+
+}  // namespace fmt
+
+namespace sdata {
+using namespace nemu;
+
+template<>
+struct Serializer<CpuRegisters> : Scheme<CpuRegisters(uint8, uint8, uint8, uint8, uint8, uint16)> {
+  Map map(CpuRegisters &registers) {
+    return {
+      {"status", registers.status.bits},
+      {"a", registers.a},
+      {"x", registers.x},
+      {"y", registers.y},
+      {"sp", registers.sp},
+      {"pc", registers.pc},
+    };
+  }
+};
+
+}  // namespace sdata
 
 #endif

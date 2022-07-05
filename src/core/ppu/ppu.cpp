@@ -26,7 +26,7 @@ void Ppu::init() {
 }
 
 void Ppu::tick() {
-  // NOTE: We don't emulate the PPU rendering behaviour when it comes to actual rendering
+  // NOTE: We don't emulate the PPU behaviour when it comes to actual rendering
 
   switch (m_scanline++) {
   case 241 ... 260: {  // V-blank
@@ -50,8 +50,8 @@ void Ppu::tick() {
 Canvas Ppu::render_canvas() {
   Canvas canvas_background {}, canvas_foreground {};
 
-  for (uint16 x = 0; x < Canvas::WIDTH; x++) {
-    for (uint16 y = 0; y < Canvas::HEIGHT; y++) {
+  for (uint16 x = 0; x < CANVAS_W; x++) {
+    for (uint16 y = 0; y < CANVAS_H; y++) {
       canvas_background.buffer[x][y] = render_background(x, y);
       canvas_foreground.buffer[x][y] = render_foreground(x, y);
     }
@@ -163,11 +163,11 @@ auto Ppu::fetch_pattern(uint8 n) {
   std::array<uint8, 8> pattern_a {}, pattern_b {};
 
   for (uint8 i = 0; i < 8; i++) {
-    pattern_a[i] = ppu_read(n * 8 + i);
+    pattern_a[i] = ppu_read(n * 16 + i);
   }
 
   for (uint8 i = 8; i < 16; i++) {
-    pattern_b[i] = ppu_read(n * 8 + i);
+    pattern_b[i] = ppu_read(n * 16 + i);
   }
 
   return std::make_tuple(pattern_a, pattern_b);
@@ -200,7 +200,7 @@ uint16 Ppu::parse_vram_address(uint16 address) {
   }
   }
 
-  throw Exception {""};
+  return {};
 }
 
 uint16 Ppu::increment_vram_address() {
@@ -216,17 +216,16 @@ uint16 Ppu::increment_vram_address() {
 }
 
 uint8 Ppu::render_background(uint16 x, uint16 y) {
-  uint16 index = (x / 8 + y / 8) % 30;
-  //uint8 tile = fetch_nametable(index);
-  static uint8 tile = 0;
-  tile = (tile + 1) % (30 * 32);
+  uint16 tile = (x / 8) + (y / 8) * 32;
+  // uint16 index = 0;
+  // uint8 tile = fetch_nametable(index);
 
   auto [pattern_a, pattern_b] = fetch_pattern(tile);
 
-  uint8 a = pattern_a[x % 8] & (1 << (y % 8));
-  uint8 b = pattern_b[x % 8] & (1 << (y % 8));
+  uint8 a = pattern_a[y % 8] & (1 << (x % 8)) ? 0b0'1 : 0b0'0;
+  uint8 b = pattern_b[y % 8] & (1 << (x % 8)) ? 0b1'0 : 0b0'0;
 
-  return a | (b << 1);
+  return a | b;
 }
 
 uint8 Ppu::render_foreground(uint16 x, uint16 y) {

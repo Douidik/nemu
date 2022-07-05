@@ -7,8 +7,8 @@ endif()
 
 include(${CPM_FILEPATH})
 
-CPMAddPackage("gh:douidik/sdata#v1.0.1")
-CPMAddPackage("gh:fmtlib/fmt#8.1.1")
-CPMAddPackage("gh:LIBSDL-ORG/SDL#2.0.22")
-CPMAddPackage("gh:catchorg/catch2#v2.13.8")
-CPMAddPackage("gh:neargye/magic_enum#v0.7.3")
+cpmaddpackage("gh:douidik/sdata#v1.0.7")
+cpmaddpackage("gh:fmtlib/fmt#8.1.1")
+cpmaddpackage("gh:LIBSDL-ORG/SDL#2.0.22")
+cpmaddpackage("gh:catchorg/catch2#v2.13.8")
+cpmaddpackage("gh:neargye/magic_enum#v0.7.3")

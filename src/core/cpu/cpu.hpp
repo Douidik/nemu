@@ -23,16 +23,20 @@ public:
     return m_disasm;
   }
 
-  inline const auto &registers() const {
+  inline const auto registers() {
     return m_regs;
   }
 
-  inline uint32 cycles_remaining() const {
+  inline uint32 cycles_remaining() {
     return m_cycles_remaining;
   }
 
-  inline uint32 instruction_counter() const {
+  inline uint32 instruction_counter() {
     return m_instruction_counter;
+  }
+
+  inline auto zip() {
+    return std::forward_as_tuple(m_regs, m_cycles_remaining, m_instruction_counter);
   }
 
 private:
@@ -57,5 +61,23 @@ private:
 };
 
 }  // namespace nemu
+
+namespace sdata {
+using namespace nemu;
+
+template<>
+struct Serializer<Cpu> : Scheme<Cpu(CpuRegisters, uint32, uint32)> {
+  Map map(Cpu &cpu) {
+    auto [registers, cycles_remaining, instruction_counter] = cpu.zip();
+
+    return {
+      {"regsiters", registers},
+      {"cycles_remaining", cycles_remaining},
+      {"instruction_counter", instruction_counter},
+    };
+  }
+};
+
+}  // namespace sdata
 
 #endif

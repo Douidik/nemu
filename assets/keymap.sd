@@ -1,0 +1,17 @@
+keymap {
+  gamepad {
+    a: 'X',
+    b: 'C',
+    select: 'Backspace',
+    start: 'Return',
+    up: 'Up',
+    down: 'Down',
+    left: 'Left',
+    right: 'Right'
+  },
+  app {
+    exit: 'Escape',
+    pause: 'Tab',
+    menu: ';'
+  }
+}

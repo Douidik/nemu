@@ -14,9 +14,13 @@ struct Disasm {
 
 }  // namespace nemu
 
+namespace fmt {
+
+using namespace nemu;
+
 template<>
-struct fmt::formatter<nemu::Disasm> {
-  using enum nemu::Mode;
+struct formatter<Disasm> {
+  using enum Mode;
 
   template<typename P>
   constexpr auto parse(P &context) {
@@ -24,13 +28,12 @@ struct fmt::formatter<nemu::Disasm> {
   }
 
   template<typename F>
-  constexpr auto format_mnemonic(nemu::Mnemonic mnemonic, F &context) const {
+  constexpr auto format_mnemonic(Mnemonic mnemonic, F &context) const {
     return format_to(context.out(), "{} ", magic_enum::enum_name(mnemonic));
   }
 
-  // TODO: choose operand depending on the fetched instruction mode
   template<typename F>
-  constexpr auto format_operand(nemu::Mode mode, nemu::uint16 operand, F &context) const {
+  constexpr auto format_operand(Mode mode, uint16 operand, F &context) const {
     switch (mode) {
     case ACC: {
       return context.out();
@@ -87,14 +90,16 @@ struct fmt::formatter<nemu::Disasm> {
   }
 
   template<typename F>
-  constexpr auto format(const nemu::Disasm &disasm, F &context) const {
+  constexpr auto format(const Disasm &disasm, F &context) const {
     auto instruction = disasm.instruction;
-    
+
     format_mnemonic<F>(instruction.mnemonic, context);
     format_operand<F>(instruction.mode, disasm.operand, context);
 
     return context.out();
   };
 };
+
+}  // namespace fmt
 
 #endif

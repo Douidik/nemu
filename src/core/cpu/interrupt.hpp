@@ -6,7 +6,7 @@
 namespace nemu {
 
 struct Interrupt {
-  enum : uint8 {
+  enum Push : uint8 {
     PUSH_PC = 1 << 0,
     PUSH_STATUS = 1 << 1,
   };

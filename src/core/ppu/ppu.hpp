@@ -1,20 +1,12 @@
 #ifndef NEMU_PPU_HPP
 #define NEMU_PPU_HPP
 
+#include "canvas.hpp"
 #include "hardware.hpp"
 #include "registers.hpp"
 #include <span>
 
 namespace nemu {
-
-struct Canvas {
-  enum Dimensions : uint16 {
-    WIDTH = 256,
-    HEIGHT = 240,
-  };
-
-  std::array<std::array<uint8, HEIGHT>, WIDTH> buffer {};
-};
 
 class Ppu : public Hardware<class Nes> {
 public:
@@ -38,6 +30,7 @@ private:
 
   auto fetch_pattern(uint8 n);
   uint8 fetch_nametable(uint8 n);
+  uint8 fetch_attribute(uint8 n);
 
   uint8 render_background(uint16 x, uint16 y);
   uint8 render_foreground(uint16 x, uint16 y);

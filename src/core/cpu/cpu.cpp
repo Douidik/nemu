@@ -47,7 +47,7 @@ uint16 Cpu::interrupt(Interrupt interrupt, uint16 pc) {
   m_regs.status.b = 1;
 
   if (interrupt.push & Interrupt::PUSH_PC) {
-    stack_push(m_regs.pc << 8);
+    stack_push(m_regs.pc >> 8);
     stack_push(m_regs.pc & 0xFF);
   }
 
@@ -166,7 +166,7 @@ uint16 Cpu::read_operand_address(Instruction instruction) {
 
     return address_bytes[1] << 8 | address_bytes[0];
   }
- 
+
   case IDX: {
     uint8 base = m_bus.cpu_read(m_regs.pc++) + m_regs.x;
 

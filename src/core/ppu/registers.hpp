@@ -3,6 +3,7 @@
 
 #include "int.hpp"
 #include <array>
+#include <sdata.hpp>
 
 namespace nemu {
 
@@ -56,5 +57,39 @@ struct PpuRegisters {
 };
 
 }  // namespace nemu
+
+namespace sdata {
+using namespace nemu;
+
+// template<>
+// struct Serializer<PpuOam> : Scheme<PpuRegisters(std::array<uint8, 256>, uint8, uint8)> {
+//   Map map(PpuOam &oam) {
+//     return {
+//       {"data", oam.data},
+//       {"address", oam.address},
+//       {"dma", oam.dma},
+//     };
+//   }
+// };
+
+// template<>
+// struct Serializer<PpuRegisters> :
+//   Scheme<PpuRegisters(PpuOam, uint16, uint16, uint8, uint8, uint8, uint8)> {
+//   Map map(PpuRegisters &registers) {
+//     return {
+//       {"oam", registers.oam},
+//       {"vram_address", registers.vram_address},
+//       {"temp_address", registers.temp_address},
+//       {"fine_x", registers.fined},
+//       {"oam", registers.oam},
+//       {"oam", registers.oam},
+//       {"oam", registers.oam},
+//       {"oam", registers.oam},
+//       {"oam", registers.oam},
+//     };
+//   }
+// };
+
+}  // namespace sdata
 
 #endif
