@@ -9,11 +9,11 @@ namespace nemu {
 
 App::App(std::span<const char *> args) :
   m_nes {m_rom},
-  m_args {args},
   m_window {800, 800, "NEMU"},
-  m_status {AppStatus::INITIALIZED} {
+  m_status {AppStatus::INITIALIZED},
+  m_args {args} {
   m_keymap = sdata::parse_file("assets/keymap.sd");
-  
+
   m_window.map_event(SDL_QUIT, [this](const SDL_Event &) {
     m_status = AppStatus::EXITING;
   });
@@ -73,13 +73,12 @@ void App::run() {
   uint32 ticks = SDL_GetTicks();
 
   while (m_status != AppStatus::EXITING) {
-    m_nes.tick();
-
     m_window.process_events();
     m_window.process_inputs();
+    m_nes.tick();
 
     // Cap the framerate to approximately 60 times per seconds (16ms delay)
-    if (uint32 new_ticks = SDL_GetTicks(); (new_ticks - ticks) >= (1000 / 1)) {
+    if (uint32 new_ticks = SDL_GetTicks(); (new_ticks - ticks) >= (1000 / 16)) {
       m_window.draw_canvas(m_nes.ppu().render_canvas());
       // Refresh frame ticks counter
       ticks = new_ticks;
@@ -93,7 +92,7 @@ void App::run() {
 }
 
 std::string App::trace_filename() const {
-  return fmt::format("logs/trace_{}.nemu", std::time(0));
+  return fmt::format("logs/nemu_{}.log", std::time(nullptr));
 }
 
 void App::trace_cpu(uint32 &instruction_counter) {
@@ -104,7 +103,7 @@ void App::trace_cpu(uint32 &instruction_counter) {
 
   // Trace the cpu status each time a new instruction is executed
   if (instruction_counter != new_instruction_counter) {
-    fmt::print(m_trace_file, "{} {}\n", registers, disasm);
+    fmt::print(m_trace_file, "{} {}\n", registers, disasm), fflush(m_trace_file);
   }
 
   instruction_counter = new_instruction_counter;

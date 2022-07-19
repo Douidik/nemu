@@ -2,6 +2,7 @@
 #define NEMU_CPU_REGISTERS_HPP
 
 #include "int.hpp"
+#include <algorithm>
 #include <fmt/format.h>
 #include <sdata.hpp>
 
@@ -36,15 +37,14 @@ struct formatter<CpuRegisters> {
   }
 
   template<typename F>
-  auto
-  format_register(std::string_view name, uint16 reg, uint8 width, F &context) const {
+  auto format_register(std::string_view name, uint16 reg, uint8 width, F &context) const {
     return format_to(context.out(), "| {}: ${:0{}X} |", name, reg, width);
   }
 
   // Format status registers: CZIDBUVN, '_' means disabled
   template<typename F>
   auto format_status(CpuStatus status, F &context) const {
-    char output[] = "| FL: ________ |", *iter = &output[6];
+    char output[] = "| FL: ________ |", *iter = std::ranges::find(output, '_');
 
     for (uint8 n = 0; n < FLAGS.size(); n++) {
       *iter++ = status.bits & (0x80 >> n) ? FLAGS[n] : '_';

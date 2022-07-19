@@ -72,7 +72,7 @@ struct formatter<Disasm> {
     }
 
     case REL: {
-      return format_to(context.out(), "${:02X}", operand);
+      return format_to(context.out(), "${:04X}", operand);
     }
 
     case ZER: {

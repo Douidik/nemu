@@ -13,10 +13,10 @@ void Nes::init() {
 }
 
 void Nes::tick() {
-  // m_ppu.tick();
-  // m_ppu.tick();
-  // m_ppu.tick();
-  m_cpu.tick();
+  m_ppu.tick();
+  m_ppu.tick();
+  m_ppu.tick();
+  m_cpu.tick();	
   m_gamepads[0].tick();
   m_gamepads[1].tick();
 }

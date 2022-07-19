@@ -3,8 +3,10 @@
 #include <iostream>
 
 int main(int argc, const char **argv) {
+  std::span<const char*> args {argv, argv + argc};
+  
   try {
-    nemu::App app {std::span(argv, argv + argc)};
+    nemu::App app {args};
     app.run();
   } catch (const std::exception &exception) {
     std::cerr << "Exception raised: " << exception.what() << std::endl;

@@ -13,7 +13,14 @@ void Window::run_context() {
     throw_context_exception();
   }
 
-  m_window = SDL_CreateWindow("NEMU", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 800, 0);
+  {
+    uint32 x = SDL_WINDOWPOS_CENTERED;
+    uint32 y = SDL_WINDOWPOS_CENTERED;
+    uint32 w = m_width;
+    uint32 h = m_height;
+
+    m_window = SDL_CreateWindow("NEMU", x, y, w, h, 0);
+  }
 
   if (!m_window) {
     throw_context_exception();
@@ -25,12 +32,14 @@ void Window::run_context() {
     throw_context_exception();
   }
 
-  uint32 w = CANVAS_W;
-  uint32 h = CANVAS_H;
-  uint32 a = SDL_TEXTUREACCESS_STREAMING;
-  uint32 f = SDL_PIXELFORMAT_ARGB8888;
+  {
+    uint32 w = CANVAS_W;
+    uint32 h = CANVAS_H;
+    uint32 a = SDL_TEXTUREACCESS_STREAMING;
+    uint32 f = SDL_PIXELFORMAT_ARGB8888;
 
-  m_nes_texture = SDL_CreateTexture(m_renderer, f, a, w, h);
+    m_nes_texture = SDL_CreateTexture(m_renderer, f, a, w, h);
+  }
 
   if (!m_nes_texture) {
     throw_context_exception();
@@ -40,7 +49,7 @@ void Window::run_context() {
 }
 
 void Window::process_events() {
-  SDL_Event event;
+  SDL_Event event {};
 
   // Map each event to it's callback
   while (SDL_PollEvent(&event) != 0) {
@@ -78,6 +87,7 @@ void Window::draw_canvas(const Canvas &canvas) {
 
   for (uint16 x = 0; x < CANVAS_W; x++) {
     for (uint16 y = 0; y < CANVAS_H; y++) {
+      // Debug drawing palette
       constexpr std::array<uint8[3], 4> COLORS = {{
         {0x02, 0x20, 0x61},
         {0x61, 0x33, 0xAB},

@@ -10,7 +10,7 @@ namespace nemu {
 struct Instruction {
   Mnemonic mnemonic {Mnemonic::ILL};
   Mode mode {Mode::IMP};
-  uint8 cycles {};
+  uint8 cycles {1};
 };
 
 namespace {

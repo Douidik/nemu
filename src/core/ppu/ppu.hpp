@@ -16,7 +16,7 @@ public:
   void tick() override;
 
   Canvas render_canvas();
-
+  
   uint8 cpu_write(uint16 n, uint8 data);
   uint8 cpu_read(uint16 n);
 

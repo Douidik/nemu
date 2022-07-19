@@ -103,7 +103,7 @@ void Cpu::parse_instruction(Instruction instruction) {
 
     switch (instruction.mnemonic) {
     case JMP:
-    case JSR: {  // Jump instructions
+    case JSR: {  // Jump instructions      
       execute_operation(instruction, address);
     } break;
 
@@ -113,7 +113,7 @@ void Cpu::parse_instruction(Instruction instruction) {
       m_bus.cpu_write(address, *execute_operation(instruction, {}));
     } break;
 
-    default: {  // R/W instructions
+    default: {  // Read/Write instructions
       auto output = execute_operation(instruction, m_bus.cpu_read(address));
 
       if (output.has_value()) {
@@ -161,7 +161,7 @@ uint16 Cpu::read_operand_address(Instruction instruction) {
     uint8 address_bytes[] = {
       m_bus.cpu_read(pointer),
       // 6502 page boundary bug emulation
-      pointer_bytes[0] != 0xFF ? m_bus.cpu_read(pointer & 0xFF00) : m_bus.cpu_read(pointer + 1),
+      pointer_bytes[0] != 0xFF ? m_bus.cpu_read(pointer + 1) : m_bus.cpu_read(pointer & 0xFF00),
     };
 
     return address_bytes[1] << 8 | address_bytes[0];
@@ -365,7 +365,7 @@ auto Cpu::execute_operation(Instruction instruction, uint16 operand) -> std::opt
   } break;
 
   case PHP: {
-    stack_push(m_regs.status.bits | (0b00110000));
+    stack_push(m_regs.status.bits | (0b0011'0000));
   } break;
 
   case PLA: {
@@ -374,7 +374,7 @@ auto Cpu::execute_operation(Instruction instruction, uint16 operand) -> std::opt
 
   case PLP: {
     // TODO: fix
-    // m_regs.status.bits = stack_pop() | (m_regs.status.bits & 0b00110000);
+    // m_regs.status.bits = stack_pop() | (m_regs.status.bits & 0b0011'0000);
     auto temp = m_regs.status;
     m_regs.status.bits = stack_pop();
     m_regs.status.b = temp.b, m_regs.status._ = temp._;
@@ -465,9 +465,8 @@ auto Cpu::execute_operation(Instruction instruction, uint16 operand) -> std::opt
   } break;
 
   case ILL: {
-    m_cycles_remaining++;
-    // throw Exception {"CPU does not implement ILL opcodes"};
-  }
+    // throw Exception {"CPU does not implement ILL opcodes (ALR, TAS, SHX, ...)"};
+  } break;
 
   case NOP: break;
   }
@@ -504,9 +503,9 @@ uint8 Cpu::bitwise_fn(uint8 operand, uint8 (*fn)(uint8 a, uint8 b)) {
 }
 
 void Cpu::branch(bool condition, uint8 offset) {
-  if (condition) {
-    uint16 destination = m_regs.pc + static_cast<int8>(offset);
+  uint16 destination = m_disasm.operand = m_regs.pc + static_cast<int8>(offset);
 
+  if (condition) {
     if ((m_regs.pc & 0xFF00) != (destination & 0xFF00)) {
       m_cycles_remaining += 2;
     } else {

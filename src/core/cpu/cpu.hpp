@@ -71,7 +71,7 @@ struct Serializer<Cpu> : Scheme<Cpu(CpuRegisters, uint32, uint32)> {
     auto [registers, cycles_remaining, instruction_counter] = cpu.zip();
 
     return {
-      {"regsiters", registers},
+      {"registers", registers},
       {"cycles_remaining", cycles_remaining},
       {"instruction_counter", instruction_counter},
     };

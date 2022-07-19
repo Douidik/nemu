@@ -11,7 +11,6 @@ public:
 
   inline uint32 map_program(uint32 n) override {
     // return n - 0x8000;  // return (n - 0x8000) % 0x4000;
-
     return n & (m_program_pages > 1 ? 0x7FFF : 0x3FFF);
   }
 

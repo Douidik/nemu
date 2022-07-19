@@ -19,6 +19,7 @@ uint8 Gamepad::press_button(GamepadInput input) {
 
 uint8 Gamepad::cpu_write(uint16 n, uint8 data) {
   m_strobe = data & 0x01, m_shift = 0x00;
+  return {};
 }
 
 uint8 Gamepad::cpu_read(uint16 n) {
