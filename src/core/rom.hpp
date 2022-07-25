@@ -3,6 +3,7 @@
 
 #include "int.hpp"
 #include <memory>
+#include <optional>
 #include <span>
 
 namespace nemu {
@@ -10,6 +11,11 @@ namespace nemu {
 enum class Mirror : uint8 {
   HORIZONTAL = 0,
   VERTICAL = 1,
+};
+
+enum PageSize : uint16 {
+  PRG_PAGE_SIZE = 16'384,
+  CHR_PAGE_SIZE = 8192,
 };
 
 struct RomMeta {
@@ -33,10 +39,14 @@ public:
   Rom() {}
   explicit Rom(std::span<uint8> data);
 
+  std::optional<uint8> cpu_peek(uint16 n) const;
+  std::optional<uint8> ppu_peek(uint16 n) const;
+
   uint8 cpu_write(uint16 n, uint8 data);
   uint8 cpu_read(uint16 n);
-  uint8 ppu_read(uint16 n);
 
+  uint8 ppu_read(uint16 n);
+  
   inline const auto &meta() const {
     return m_meta;
   }
@@ -48,6 +58,8 @@ public:
   inline Mirror mirror() const {
     return m_meta.mirror;
   }
+
+  std::span<uint8> pattern(uint8 n) const;
 
 private:
   RomMeta m_meta;

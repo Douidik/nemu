@@ -13,9 +13,11 @@ public:
   virtual void init() = 0;
   virtual void tick() = 0;
 
+  virtual std::optional<uint8> cpu_peek(uint16 n) const = 0;
+
   virtual uint8 cpu_write(uint16 n, uint8 data) = 0;
   virtual uint8 cpu_read(uint16 n) = 0;
-  
+
   inline auto &ram() {
     return m_ram;
   }

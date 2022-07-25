@@ -73,6 +73,8 @@ void App::run() {
   uint32 ticks = SDL_GetTicks();
 
   while (m_status != AppStatus::EXITING) {
+    trace_cpu(cpu_instruction_counter);
+
     m_window.process_events();
     m_window.process_inputs();
     m_nes.tick();
@@ -83,8 +85,6 @@ void App::run() {
       // Refresh frame ticks counter
       ticks = new_ticks;
     }
-
-    trace_cpu(cpu_instruction_counter);
   }
 
   std::fclose(m_trace_file);
@@ -96,14 +96,15 @@ std::string App::trace_filename() const {
 }
 
 void App::trace_cpu(uint32 &instruction_counter) {
+  constexpr size_t MAX_LINE_LENGTH {160};
   uint32 new_instruction_counter = m_nes.cpu().instruction_counter();
-
-  const auto &registers = m_nes.cpu().registers();
-  const auto &disasm = m_nes.cpu().disasm();
 
   // Trace the cpu status each time a new instruction is executed
   if (instruction_counter != new_instruction_counter) {
-    fmt::print(m_trace_file, "{} {}\n", registers, disasm), fflush(m_trace_file);
+    fmt::print(m_trace_file, "{:{}}", m_nes.cpu().disasm(), MAX_LINE_LENGTH);
+    // fmt::print(m_frame_file, "{}"
+
+    // fmt::print(m_trace_file, "{} {}\n", registers, disasm), std::fflush(m_trace_file);
   }
 
   instruction_counter = new_instruction_counter;

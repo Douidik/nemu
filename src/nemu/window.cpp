@@ -33,8 +33,8 @@ void Window::run_context() {
   }
 
   {
-    uint32 w = CANVAS_W;
-    uint32 h = CANVAS_H;
+    uint32 w = Canvas::W;
+    uint32 h = Canvas::H;
     uint32 a = SDL_TEXTUREACCESS_STREAMING;
     uint32 f = SDL_PIXELFORMAT_ARGB8888;
 
@@ -85,8 +85,8 @@ void Window::draw_canvas(const Canvas &canvas) {
 
   SDL_LockTexture(m_nes_texture, nullptr, (void **)&nes_frame, &nes_frame_pitch);
 
-  for (uint16 x = 0; x < CANVAS_W; x++) {
-    for (uint16 y = 0; y < CANVAS_H; y++) {
+  for (uint16 x = 0; x < Canvas::W; x++) {
+    for (uint16 y = 0; y < Canvas::H; y++) {
       // Debug drawing palette
       constexpr std::array<uint8[3], 4> COLORS = {{
         {0x02, 0x20, 0x61},
@@ -97,16 +97,16 @@ void Window::draw_canvas(const Canvas &canvas) {
 
       auto [r, g, b] = COLORS[canvas.buffer[x][y]];
 
-      nes_frame[y * CANVAS_W + x] |= (b << 8 * 0);
-      nes_frame[y * CANVAS_W + x] |= (g << 8 * 1);
-      nes_frame[y * CANVAS_W + x] |= (r << 8 * 2);
-      nes_frame[y * CANVAS_W + x] |= (0xFF000000);
+      nes_frame[y * Canvas::W + x] |= (b << 8 * 0);
+      nes_frame[y * Canvas::W + x] |= (g << 8 * 1);
+      nes_frame[y * Canvas::W + x] |= (r << 8 * 2);
+      nes_frame[y * Canvas::W + x] |= (0xFF000000);
     }
   }
 
   SDL_UnlockTexture(m_nes_texture);
 
-  SDL_Rect src_rect {0, 0, CANVAS_W, CANVAS_H};
+  SDL_Rect src_rect {0, 0, Canvas::W, Canvas::H};
   SDL_Rect dst_rect {0, 0, (int32)m_width, (int32)m_width};
 
   SDL_RenderClear(m_renderer);

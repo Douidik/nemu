@@ -14,6 +14,9 @@ public:
 
   static std::shared_ptr<Mapper> create(uint8 type, uint8 program_pages, uint8 character_pages);
 
+  virtual uint32 peek_program(uint32 n) const = 0;
+  virtual uint32 peek_character(uint32 n) const = 0;
+
   virtual uint32 map_program(uint32 n) = 0;
   virtual uint32 map_character(uint32 n) = 0;
 

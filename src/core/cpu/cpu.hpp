@@ -19,9 +19,7 @@ public:
   void irq();
   void nmi();
 
-  inline const auto &disasm() const {
-    return m_disasm;
-  }
+  Disasm disasm() const;
 
   inline const auto registers() {
     return m_regs;
@@ -43,9 +41,9 @@ private:
   uint16 interrupt(Interrupt interrupt, uint16 pc);
 
   void parse_instruction(Instruction instruction);
+  uint16 read_address(Instruction instruction);
   auto execute_operation(Instruction instruction, uint16 operand) -> std::optional<uint8>;
 
-  uint16 read_operand_address(Instruction instruction);
   uint8 parse_operand(uint8 operand);
   uint8 add_with_carry(uint8 operand);
   uint8 bitwise_fn(uint8 operand, uint8 (*fn)(uint8 a, uint8 b));
@@ -55,7 +53,10 @@ private:
   uint8 stack_push(uint8 data);
   uint8 stack_pop();
 
-  Disasm m_disasm;
+  Disasm::Bytes disasm_bytes(Instruction instruction) const;
+  Disasm::Fetch disasm_fetch(Instruction instruction) const;
+  Disasm::Operation disasm_operation(Instruction instruction, Disasm::Fetch address) const;
+
   CpuRegisters m_regs;
   uint32 m_cycles_remaining, m_instruction_counter;
 };

@@ -2,58 +2,77 @@
 #define NEMU_PPU_REGISTERS_HPP
 
 #include "int.hpp"
-#include <array>
 #include <sdata.hpp>
 
 namespace nemu {
 
-enum PpuControl {
-  PPU_NAMETABLE_ADDRESS = 0x03,
-  PPU_VRAM_INCREMENT = 1 << 2,
-  PPU_SPRITE_PATTERN_ADDRESS = 1 << 3,
-  PPU_BACKGROUND_PATTERN_ADDRESS = 1 << 4,
-  PPU_SPRITE_SIZE = 1 << 5,
-  PPU_GENERATE_NMI = 1 << 7,
-};
-
-enum PpuMask {
-  PPU_GREYSCALE = 1 << 0,
-  PPU_LEFTMOST_BACKGROUND = 1 << 1,
-  PPU_LEFTMOST_SPRITES = 1 << 2,
-  PPU_SHOW_BACKGROUND = 1 << 3,
-  PPU_SHOW_SPRITES = 1 << 4,
-  PPU_EMPHASIZE_RED = 1 << 5,
-  PPU_EMPHASIZE_GREEN = 1 << 6,
-  PPU_EMPHASIZE_BLUE = 1 << 7,
-};
-
-enum PpuStatus {
-  PPU_SPRITE_OVERFLOW = 1 << 5,
-  PPU_SPRITE_ZERO_HIT = 1 << 6,
-  PPU_VBLANK = 1 << 7,
-};
-
-struct PpuOam {
-  std::array<uint8, 256> data;
-  uint8 address, dma;
-};
-
-union PpuAddress {
+union PpuScroll {
   struct {
-    uint8 coarse_x : 5;
-    uint8 coarse_y : 5;
-    uint8 nametable_x : 1;
-    uint8 nametable_y : 1;
-    uint8 fine_y : 3;
+    uint8 x, y;
   };
 
   uint16 bits;
 };
 
+struct PpuLatch {
+  inline bool use() {
+    return value = !value;
+  }
+
+  inline bool reset() {
+    return value = false;
+  }
+
+  bool value;
+};
+
+union PpuControl {
+  struct {
+    uint8 nt_address : 3;
+    bool vram_increment : 1;
+    bool spr_address : 1;
+    bool bgr_address : 1;
+    bool spr_size : 1;
+    bool nmi : 1;
+  };
+
+  uint8 bits;
+};
+
+union PpuMask {
+  struct {
+    bool greyscale : 1;
+    bool bgr_leftmost : 1;
+    bool spr_leftmost : 1;
+    bool bgr_show : 1;
+    bool spr_show : 1;
+    bool red_emphasize : 1;
+    bool green_emphasize : 1;
+    bool blue_emphasize : 1;
+  };
+
+  uint8 bits;
+};
+
+union PpuStatus {
+  struct {
+    uint8 _ : 5;
+
+    bool spr_overflow : 1;
+    bool spr_zero_hit : 1;
+    bool vblank : 1;
+  };
+
+  uint8 bits;
+};
+
 struct PpuRegisters {
-  PpuOam oam;
-  PpuAddress vram_address, temp_address;
-  uint8 fine_x, control, mask, status;
+  uint16 address;
+  PpuScroll scroll;
+  PpuLatch latch;
+  PpuControl control;
+  PpuMask mask;
+  PpuStatus status;
 };
 
 }  // namespace nemu
@@ -61,34 +80,19 @@ struct PpuRegisters {
 namespace sdata {
 using namespace nemu;
 
-// template<>
-// struct Serializer<PpuOam> : Scheme<PpuRegisters(std::array<uint8, 256>, uint8, uint8)> {
-//   Map map(PpuOam &oam) {
-//     return {
-//       {"data", oam.data},
-//       {"address", oam.address},
-//       {"dma", oam.dma},
-//     };
-//   }
-// };
-
-// template<>
-// struct Serializer<PpuRegisters> :
-//   Scheme<PpuRegisters(PpuOam, uint16, uint16, uint8, uint8, uint8, uint8)> {
-//   Map map(PpuRegisters &registers) {
-//     return {
-//       {"oam", registers.oam},
-//       {"vram_address", registers.vram_address},
-//       {"temp_address", registers.temp_address},
-//       {"fine_x", registers.fined},
-//       {"oam", registers.oam},
-//       {"oam", registers.oam},
-//       {"oam", registers.oam},
-//       {"oam", registers.oam},
-//       {"oam", registers.oam},
-//     };
-//   }
-// };
+template<>
+struct Serializer<PpuRegisters> : Scheme<PpuRegisters(uint16, uint16, bool, uint8, uint8, uint8)> {
+  Map map(PpuRegisters &registers) {
+    return {
+      {"address", registers.address},
+      {"scroll", registers.scroll.bits},
+      {"latch", registers.latch.value},
+      {"control", registers.control.bits},
+      {"mask", registers.mask.bits},
+      {"status", registers.status.bits},
+    };
+  }
+};
 
 }  // namespace sdata
 

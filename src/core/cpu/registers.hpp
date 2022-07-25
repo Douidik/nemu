@@ -29,7 +29,11 @@ using namespace nemu;
 
 template<>
 struct formatter<CpuRegisters> {
-  constexpr static std::string_view FLAGS = "NVUBDIZC";
+  // Set and disabled flags representation
+  constexpr static std::string_view FLAGS[2] {
+    "nvubdizc",
+    "NVUBDIZC",
+  };
 
   template<typename P>
   constexpr auto parse(P &context) {
@@ -37,31 +41,35 @@ struct formatter<CpuRegisters> {
   }
 
   template<typename F>
-  auto format_register(std::string_view name, uint16 reg, uint8 width, F &context) const {
-    return format_to(context.out(), "| {}: ${:0{}X} |", name, reg, width);
+  auto format_register(std::string_view name, auto data, uint8 width, auto sep, F &context) const {
+    return format_to(context.out(), "{}: ${:0{}X}{} ", name, data, width, sep);
   }
 
-  // Format status registers: CZIDBUVN, '_' means disabled
   template<typename F>
-  auto format_status(CpuStatus status, F &context) const {
-    char output[] = "| FL: ________ |", *iter = std::ranges::find(output, '_');
+  auto format_status(CpuStatus status, auto sep, F &context) const {
+    char output[] = "FL: ________", *iter = std::ranges::find(output, '_');
 
-    for (uint8 n = 0; n < FLAGS.size(); n++) {
-      *iter++ = status.bits & (0x80 >> n) ? FLAGS[n] : '_';
+    for (uint8 n = 0; n < 8; n++) {
+      *iter++ = status.bits & (0x80 >> n) ? FLAGS[1][n] : FLAGS[0][n];
     }
 
-    return format_to(context.out(), "{}", output);
+    return format_to(context.out(), "{}{}", output, sep);
   }
 
   template<typename F>
   constexpr auto format(const CpuRegisters &registers, F &context) const {
-    format_register("A", registers.a, 2, context);
-    format_register("X", registers.x, 2, context);
-    format_register("Y", registers.y, 2, context);
-    format_register("SP", registers.sp, 2, context);
-    format_register("ST", registers.status.bits, 2, context);
-    format_status(registers.status, context);
-    format_register("PC", registers.pc, 4, context);
+    format_to(context.out(), "{{");
+    {
+      format_status(registers.status, ", ", context);
+      format_register("SP", registers.sp, 2, ", ", context);
+
+      format_register("A", registers.a, 2, ", ", context);
+      format_register("X", registers.x, 2, ", ", context);
+      format_register("Y", registers.y, 2, ", ", context);
+      format_register("ST", registers.status.bits, 2, ", ", context);
+      format_register("PC", registers.pc, 4, "", context);
+    }
+    format_to(context.out(), "}}");
 
     return context.out();
   }

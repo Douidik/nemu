@@ -15,6 +15,9 @@ public:
   void init() override;
   void tick() override;
 
+  std::optional<uint8> cpu_peek(uint16 n) const override;
+  std::optional<uint8> ppu_peek(uint16 n) const;
+
   uint8 cpu_write(uint16 n, uint8 data) override;
   uint8 cpu_read(uint16 n) override;
   uint8 ppu_read(uint16 n);

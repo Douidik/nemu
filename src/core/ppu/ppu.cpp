@@ -1,227 +1,260 @@
 #include "ppu.hpp"
-#include "bus.hpp"
 #include "exception.hpp"
-#include "int.hpp"
 #include "nes.hpp"
-#include "ppu/registers.hpp"
-#include "rom.hpp"
+#include <tuple>
 
 namespace nemu {
+
+template<typename T>
+class Range {
+public:
+  Range(auto a, auto b) : bounds {a, b} {}
+  Range(auto n) : bounds {n, n} {}
+  Range() : bounds {std::nullopt, std::nullopt} {}
+
+  bool includes(auto n) const {
+    return (!bounds[0] || n >= *bounds[0]) && (!bounds[1] || *bounds[1] >= n);
+  }
+
+private:
+  std::optional<T> bounds[2];
+};
 
 Ppu::Ppu(Nes *nes) : Hardware {nes} {}
 
 void Ppu::init() {
-  m_data_buffer = {}, m_vram = {}, m_latch = {}, m_palette = {};
-  m_scanline = 0, m_ticks = 0, m_frame_count = 0;
+  m_vram = {}, m_colors = {};
+  m_scanline = 0, m_ticks = 0, m_framecount = 0;
 
-  m_regs = PpuRegisters {
-    .oam = {{0x00}, 0x00, 0x00},
-    .vram_address = {},
-    .temp_address = {},
-    .fine_x = 0x00,
-    .control = 0x00,
-    .mask = 0x00,
-    .status = 0x00,
+  m_regs = {
+    .address = {},
+    .scroll = {},
+    .latch = {},
+    .control = {},
+    .mask = {},
+    .status = {},
   };
 }
 
 void Ppu::tick() {
-  // NOTE: We don't emulate the PPU behaviour when it comes to actual rendering
+  auto ppu_event = [this](
+                     std::string_view timing,
+                     Range<uint32> tick,
+                     Range<uint32> scanline,
+                     auto event) -> bool {
+    bool included = tick.includes(m_ticks) && scanline.includes(m_scanline);
 
-  switch (m_scanline) {
-  case 241: {  // V-blank
-    if (m_ticks == 1) {
+    if (included) {
+      m_timing = timing;
+      event();
+    }
+
+    return included;
+  };
+
+  ppu_event("begin_vblank", 1, 241, [this] {
+    m_regs.status.vblank = 1;
+
+    if (m_regs.control.nmi) {
       m_bus.cpu().nmi();
-      m_regs.status |= PPU_VBLANK;
     }
-  } break;
+  });
 
-  case 261: {  // Pre-render
-    switch (m_ticks) {
-    case 1: m_regs.status &= ~PPU_VBLANK; break;
-    case 340: m_scanline = 0, m_frame_count++; break;
-    }
-  } break;
-  }
+  ppu_event("end_vblank", 1, 261, [this] {
+    m_regs.status.vblank = 0;
+  });
 
-  if (m_ticks > 341) {
-    m_ticks = 0, m_scanline++;
-  } else {
-    m_ticks++;
-  }
+  ppu_event("begin_frame", 340, 261, [this] {
+    m_scanline = 0, m_framecount++;
+  });
+
+  // end_tick
+  m_ticks++;
+
+  ppu_event("end_scaline", 341, std::nullopt, [this] {
+    m_scanline++, m_ticks = 0;
+  });
+
+  // if (!(m_framecount & 2) && on_event(0, 0, "skipped_on_odd")) {
+  //   m_ticks++;
+  // }
 }
 
-Canvas Ppu::render_canvas() {
-  Canvas canvas_background {}, canvas_foreground {};
-
-  for (uint16 x = 0; x < CANVAS_W; x++) {
-    for (uint16 y = 0; y < CANVAS_H; y++) {
-      canvas_background.buffer[x][y] = render_background(x, y);
-      canvas_foreground.buffer[x][y] = render_foreground(x, y);
-    }
-  }
-
-  return canvas_background;
-}
-
-uint8 Ppu::cpu_read(uint16 n) {
+std::optional<uint8> Ppu::cpu_peek(uint16 n) const {
   switch (n) {
   case 0x2002: {
-    uint8 output = m_regs.status;
-
-    m_latch = false;
-    m_regs.status &= ~PPU_VBLANK;
-
-    return output;
+    return m_regs.status.bits;
   }
 
   case 0x2004: {
-    return m_regs.oam.data[m_regs.oam.address];
+    return {};  // TODO
   }
 
   case 0x2007: {
-    return ppu_read(increment_vram_address());
+    return ppu_peek();
   }
   }
 
-  throw Exception {"Out of bound PPU read from CPU: 0x{:04X}", n};
+  return std::nullopt;
 }
 
 uint8 Ppu::cpu_write(uint16 n, uint8 data) {
   switch (n) {
   case 0x2000: {
-    m_regs.temp_address.nametable_x = data & 0x01;
-    m_regs.temp_address.nametable_y = data & 0x02;
-
-    return m_regs.control |= (data & PPU_NAMETABLE_ADDRESS);
+    return m_regs.control.bits = data;
   }
 
   case 0x2001: {
-    return m_regs.mask = data;
+    return m_regs.mask.bits = data;
   }
 
   case 0x2003: {
-    return m_regs.oam.address = data;
+    return {};
   }
 
   case 0x2004: {
-    return m_regs.oam.data[m_regs.oam.address] = data;
+    return {};
   }
 
   case 0x2005: {
-    if (!(m_latch = !m_latch)) {
-      m_regs.fine_x = data & 0x07;
-      m_regs.temp_address.coarse_x = data >> 3;
+    if (m_regs.latch.use()) {
+      return m_regs.scroll.x = data;
     } else {
-      m_regs.temp_address.fine_y = data & 0x07;
-      m_regs.temp_address.coarse_y = data >> 3;
+      return m_regs.scroll.y = data;
     }
   }
 
   case 0x2006: {
-    if (!(m_latch = !m_latch)) {
-      return m_regs.temp_address.bits |= (data & 0x3F) << 8;
+    if (m_regs.latch.use()) {
+      return m_regs.address |= (data << 8);
     } else {
-      return m_regs.vram_address.bits = (m_regs.temp_address.bits |= data);
+      return m_regs.address |= (data & 0xFF);
     }
   }
 
   case 0x2007: {
-    return ppu_write(increment_vram_address(), data);
+    return ppu_write(data);
   }
   }
 
   throw Exception {"Out of bound PPU write from CPU: 0x{:04X}", n};
 }
 
-uint8 Ppu::ppu_read(uint16 n) {
+uint8 Ppu::cpu_read(uint16 n) {
+  switch (n) {
+  case 0x2002: {
+    uint8 bits = m_regs.status.bits;
+
+    m_regs.latch.reset();
+    m_regs.status.vblank = 0;
+
+    return bits;
+  }
+
+  case 0x2004: {
+    return {};
+  }
+
+  case 0x2007: {
+    return ppu_read();
+  }
+  }
+
+  throw Exception {"Out of bound PPU read from CPU: 0x{:04X}", n};
+}
+
+Canvas Ppu::render_canvas() {
+  return render_background();
+}
+
+std::optional<uint8> Ppu::ppu_peek() const {
+  uint16 n = m_regs.address;
+
+  switch (n) {
+  case 0x0000 ... 0x1FFF: {
+    return m_bus.ppu_peek(n);
+  }
+
+  case 0x2000 ... 0x3EFF: {
+    return m_vram[vram_address(n)];
+  }
+
+  case 0x3F00 ... 0x3FFF: {
+    return m_colors[color_address(n)];
+  }
+  }
+
+  return std::nullopt;
+}
+
+uint8 Ppu::ppu_write(uint8 data) {
+  uint16 n = ppu_address();
+
+  switch (n) {
+  case 0x2000 ... 0x3EFF: {
+    return m_vram[vram_address(n)] = data;
+  }
+
+  case 0x3F00 ... 0x3FFF: {
+    return m_colors[color_address(n)] = data;
+  }
+  }
+
+  throw Exception {"Out of bound PPU write (with the address register) from CPU: 0x{:04X}", n};
+}
+
+uint8 Ppu::ppu_read() {
+  uint16 n = ppu_address();
+
   switch (n) {
   case 0x0000 ... 0x1FFF: {
     return m_bus.ppu_read(n);
   }
 
   case 0x2000 ... 0x3EFF: {
-    return m_vram[parse_vram_address(n)];
+    return m_vram[vram_address(n)];
   }
 
   case 0x3F00 ... 0x3FFF: {
-    switch (n) {
-    case 0x3F10:
-    case 0x3F14:
-    case 0x3F18:
-    case 0x3F1C: {
-      return ppu_read(n - 0x10);
-    }
-    }
-
-    return m_palette[n - 0x3F00];
+    return m_colors[color_address(n)];
   }
   }
 
-  throw Exception {"Out of bound PPU read (with address register) from CPU: 0x{:04X}", n};
+  throw Exception {"Out of bound PPU read (with the address register) from CPU: 0x{:04X}", n};
 }
 
-uint8 Ppu::ppu_write(uint16 n, uint8 data) {
-  switch (n) {
-  case 0x2000 ... 0x3EFF: {
-    return m_vram[parse_vram_address(n)] = data;
+uint16 Ppu::ppu_address() {
+  uint16 output = m_regs.address;
+
+  if (m_regs.control.vram_increment) {
+    m_regs.address = (m_regs.address + 0x20);  // & 0x3FFF;
+  } else {
+    m_regs.address = (m_regs.address + 0x01);  // & 0x3FFF;
   }
 
-  case 0x3F00 ... 0x3FFF: {
-    switch (n) {
-    case 0x3F10:
-    case 0x3F14:
-    case 0x3F18:
-    case 0x3F1C: {
-      return ppu_write(n - 0x10, data);
-    }
-    }
-
-    return m_palette[n - 0x3F00] = data;
-  }
-  }
-
-  throw Exception {"Out of bound PPU write (with address register) from CPU: 0x{:04X}", n};
+  return output;
 }
 
-auto Ppu::fetch_pattern(uint8 n) {
-  std::array<uint8, 8> pattern_a {}, pattern_b {};
-
-  for (uint8 i = 0; i < 8; i++) {
-    pattern_a[i] = ppu_read(n * 16 + i);
-    pattern_b[i] = ppu_read(n * 16 + i + 8);
-  }
-
-  return std::make_tuple(pattern_a, pattern_b);
-}
-
-uint8 Ppu::fetch_nametable(uint8 n) {
-  uint16 offset = (m_regs.control & PPU_NAMETABLE_ADDRESS) * 0x0400;
-  uint16 base_nametable = 0x2000 + offset;
-  uint16 address = base_nametable | n;
-
-  return ppu_read(address);
-}
-
-uint16 Ppu::parse_vram_address(uint16 address) {
-  uint16 mapped = address & 0x0FFF;
+uint16 Ppu::vram_address(uint16 n) const {
+  uint16 mapped = n - 0x2000;
   uint8 nametable = mapped / 0x0400;
 
   switch (m_bus.rom().mirror()) {
   case Mirror::HORIZONTAL: {
     switch (nametable) {
-    case 0: return mapped - 0x0000;
-    case 1: return mapped - 0x0400;
-    case 2: return mapped - 0x0400;
-    case 3: return mapped - 0x0800;
+    case 0: return mapped - 0x000;
+    case 1: return mapped - 0x400;
+    case 2: return mapped - 0x400;
+    case 3: return mapped - 0x800;
     }
   }
+
   case Mirror::VERTICAL: {
     switch (nametable) {
-    case 0: return mapped - 0x0000;
-    case 1: return mapped - 0x0000;
-    case 2: return mapped - 0x0800;
-    case 3: return mapped - 0x0800;
+    case 0: return mapped - 0x000;
+    case 1: return mapped - 0x000;
+    case 2: return mapped - 0x800;
+    case 3: return mapped - 0x800;
     }
   }
   }
@@ -229,54 +262,46 @@ uint16 Ppu::parse_vram_address(uint16 address) {
   return {};
 }
 
-uint16 Ppu::increment_vram_address() {
-  uint16 address = m_regs.vram_address.bits;
+uint16 Ppu::color_address(uint16 n) const {
+  uint8 mapped = n & 0x001F;
 
-  if (m_regs.control & PPU_VRAM_INCREMENT) {
-    m_regs.vram_address.bits += 32;
-  } else {
-    m_regs.vram_address.bits += 1;
+  switch (mapped) {
+  case 0x10:
+  case 0x14:
+  case 0x18:
+  case 0x1C: {
+    return mapped - 0x10;
+  }
   }
 
-  return address;
+  return mapped;
 }
 
-uint8 Ppu::render_background(uint16 x, uint16 y) {
-  uint16 index = (x / 8) + (y / 8) * 32;
-  uint8 tile = fetch_nametable(index);
-  
-  auto [pattern_a, pattern_b] = fetch_pattern(tile);
+Canvas Ppu::render_background() {
+  Canvas canvas {};
 
-  uint8 a = pattern_a[y % 8] & (1 << (x % 8)) ? 0b0'1 : 0b0'0;
-  uint8 b = pattern_b[y % 8] & (1 << (x % 8)) ? 0b1'0 : 0b0'0;
+  auto pattern = m_bus.rom().pattern(0);
 
-  return a | b;
+  for (uint16 x = 0; x < Canvas::W; x++) {
+    for (uint16 y = 0; y < Canvas::H; y++) {
+      uint16 nt_index = 0x2000 | ((x / 8) + (y / 8) * Canvas::W);
+      uint16 nt_value = m_vram[vram_address(nt_index)];
+
+      auto pattern_a = pattern.subspan(nt_value * 16 + 0, 8);
+      auto pattern_b = pattern.subspan(nt_value * 16 + 8, 8);
+
+      uint8 a = pattern_a[y % 8] & (1 << (x % 8)) ? 0b0'1 : 0b0'0;
+      uint8 b = pattern_b[y % 8] & (1 << (x % 8)) ? 0b1'0 : 0b0'0;
+
+      canvas.buffer[x][y] = a | b;
+    }
+  }
+
+  return canvas;
 }
 
-uint8 Ppu::render_foreground(uint16 x, uint16 y) {
+Canvas Ppu::render_foreground() {
   return {};
 }
 
 }  // namespace nemu
-
-// void Ppu::render() {
-//   for (uint16 n = 0; n < 960; n++) {
-//     uint8 tile = fetch_nametable(n);
-//     auto [main_pattern, second_pattern] = fetch_pattern(tile);
-
-//     for (uint8 i = 0; i < 8; i++) {
-//       for (uint8 j = 0; j < 8; j++) {
-//         uint8 a = main_pattern[i] & (1 << j);
-//         uint8 b = second_pattern[i] & (1 << j);
-
-//         auto [x, y] = std::div(n, 32);
-//         // canvas.buffer[x * 8 + j][y * 8 + i] = a | (b << 1);
-//       }
-//     }
-//   }
-
-//   uint8 tile_x = (m_ticks / 8) % 64;
-//   uint8 tile_y = (m_ticks / 8) % 60;
-
-//   uint8 tile = fetch_nametable((tile_x + tile_y))
-// }

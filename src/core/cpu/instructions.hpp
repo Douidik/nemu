@@ -7,10 +7,39 @@
 
 namespace nemu {
 
+using namespace mnemonics;
+using namespace modes;
+
 struct Instruction {
   Mnemonic mnemonic {Mnemonic::ILL};
   Mode mode {Mode::IMP};
   uint8 cycles {1};
+
+  constexpr static std::size_t max_size() {
+    return 3;
+  }
+
+  constexpr std::size_t size() const {
+    switch (mode) {
+    case ACC:
+    case IMP: return 1;
+
+    case IMM:
+    case REL:
+    case ZER:
+    case ZPX:
+    case ZPY: return 2;
+
+    case ABS:
+    case ABX:
+    case ABY:
+    case IND:
+    case IDX:
+    case IDY: return 3;
+
+    default: return {};
+    }
+  }
 };
 
 namespace {
