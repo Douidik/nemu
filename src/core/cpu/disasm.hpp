@@ -1,363 +1,61 @@
 #ifndef NEMU_DISASM_HPP
 #define NEMU_DISASM_HPP
 
-#include "cpu/instructions.hpp"
-#include "cpu/registers.hpp"
 #include "exception.hpp"
+#include "instructions.hpp"
+#include "misc.hpp"
+#include "registers.hpp"
+#include <algorithm>
 #include <charconv>
-#include <concepts>
 #include <fmt/format.h>
-#include <magic_enum.hpp>
-#include <variant>
 #include <vector>
 
 namespace nemu {
 
 struct Disasm {
-  union Operation {
-    struct Load {};
-
-    struct Store {};
-
-    struct Transfer {
-      struct Operand {
-        std::string_view name;
-        uint8 data;
-      } source, destination;
-    };
-
-    struct Stack {
-      std::string_view description;
-      uint8 stack_pointer;
-    };
-
-    struct Increment {
-      std::string_view description;
-      uint8 data;
-    };
-
-    struct BinaryOp {
-      std::string_view description;
-      uint8 a, b;
-    };
-
-    struct Shift {
-      std::string_view description;
-      uint8 data;
-    };
-
-    struct Flag {
-      std::string_view description;
-    };
-
-    struct Comparison {
-      uint8 a, b;
-    };
-
-    struct Conditional {
-      std::string_view description;
-      bool condition;
-    };
-
-    struct Jump {};
-
-    struct Interrupt {};
-
-    struct OtherOp {};
-
-    Load load;
-    Store store;
-    Transfer transfer;
-    Stack stack;
-    Increment increment;
-    BinaryOp binary_op;
-    Shift shift;
-    Flag flag;
-    Comparison comparison;
-    Conditional conditional;
-    Jump jump;
-    Interrupt interrupt;
-    OtherOp other_op;
-  };
-
-  union Fetch {
-    struct Acc {
-      uint8 data;
-    };
-
-    struct Abs {
-      uint16 address;
-      uint8 data;
-    };
-
-    struct Abx {
-      uint16 destination, address;
-      uint8 offset, data;
-    };
-
-    struct Aby {
-      uint16 destination, address;
-      uint8 offset, data;
-    };
-
-    struct Imm {
-      uint8 data;
-    };
-
-    struct Imp {};
-
-    struct Ind {
-      uint16 destination, address, data;
-    };
-
-    struct Idx {
-      uint16 destination;
-      uint8 address, offset, data;
-    };
-
-    struct Idy {
-      uint16 destination;
-      uint8 address, offset, data;
-    };
-
-    struct Rel {
-      uint16 destination;
-      uint16 start;
-      int8 offset;
-    };
-
-    struct Zer {
-      uint8 address, data;
-    };
-
-    struct Zpx {
-      uint8 destination, address, offset, data;
-    };
-
-    struct Zpy {
-      uint8 destination, address, offset, data;
-    };
-
-    Acc acc;
-    Abs abs;
-    Abx abx;
-    Aby aby;
-    Imm imm;
-    Imp imp;
-    Ind ind;
-    Idx idx;
-    Idy idy;
-    Rel rel;
-    Zer zer;
-    Zpx zpx;
-    Zpy zpy;
-  };
-
   struct Bytes : std::vector<uint8> {
     using vector::vector;
   };
 
-  Instruction instruction;
-  Operation operation;
-  Fetch fetch;
-  Bytes bytes;
+  struct Fetch {
+    Mode mode;
+
+    std::string_view description;
+    uint16 address;
+    uint16 destination;
+    uint8 offset;
+    uint8 data;
+  };
+
+  struct Operation {
+    Mnemonic mnemonic;
+
+    std::string_view description;
+    uint8 operands[2];
+  };
+
   CpuRegisters registers;
+  Bytes bytes;
+  Fetch fetch;
+  Operation operation;
 };
 
 }  // namespace nemu
 
 namespace fmt {
+
 using namespace nemu;
-
-template<>
-struct formatter<Disasm::Fetch> {
-  template<typename P>
-  constexpr auto parse(P &context) {
-    return context.begin();
-  }
-
-  template<typename F>
-  constexpr auto format(const Disasm::Fetch fetch, F &context) const {
-    // Fetch variant visitor
-    auto fetch_visitor = [&context]<typename T>(T fetch) -> F & {
-      if constexpr (std::same_as<T, Disasm::Acc>) {
-        format_to(context.out(), "A [=#${:02X}]", fetch.data);
-      }
-
-      if constexpr (std::same_as<T, Disasm::Abs>) {
-        format_to(context.out(), "${:04X} [=#${:02X}]", fetch.address, fetch.data);
-      }
-
-      if constexpr (std::same_as<T, Disasm::Abx>) {
-        format_to(
-          context.out(),
-          "#${:04X},x [=#${:02X}, x:#${:02X}, d:${:04X}]",
-          fetch.address,
-          fetch.data,
-          fetch.offset,
-          fetch.destination);
-      }
-
-      if constexpr (std::same_as<T, Disasm::Aby>) {
-        format_to(
-          context.out(),
-          "#${:04X},x [=#${:02X}, y:#${:02X}, d:${:04X}]",
-          fetch.address,
-          fetch.data,
-          fetch.offset,
-          fetch.destination);
-      }
-
-      if constexpr (std::same_as<T, Disasm::Imm>) {
-        format_to(context.out(), "#${:02X}", fetch.data);
-      }
-
-      if constexpr (std::same_as<T, Disasm::Ind>) {
-        format_to(
-          context.out(),
-          "(${:04X}) [=#${:02X}, d:${:04X}]",
-          fetch.address,
-          fetch.data,
-          fetch.destination);
-      }
-
-      if constexpr (std::same_as<T, Disasm::Idx>) {
-        format_to(
-          context.out(),
-          "(${:04X}) [=#${:02X}, x:#${:02X}, d:${:04X}]",
-          fetch.address,
-          fetch.data,
-          fetch.offset,
-          fetch.destination);
-      }
-
-      if constexpr (std::same_as<T, Disasm::Idy>) {
-        format_to(
-          context.out(),
-          "(${:04X}) [=#${:02X}, y:#${:02X}, d:${:04X}]",
-          fetch.address,
-          fetch.data,
-          fetch.offset,
-          fetch.destination);
-      }
-
-      if constexpr (std::same_as<T, Disasm::Rel>) {
-        format_to(context.out(), "${:04X}", fetch.destination);
-      }
-
-      if constexpr (std::same_as<T, Disasm::Zer>) {
-        format_to(context.out(), "${:02X} [=#${:02X}]", fetch.address, fetch.data);
-      }
-
-      if constexpr (std::same_as<T, Disasm::Zpx>) {
-        format_to(
-          context.out(),
-          "${:02X} [=#${:02X}, x:#${:02X}, d:${:02X}]",
-          fetch.address,
-          fetch.data,
-          fetch.offset,
-          fetch.destination);
-      }
-
-      if constexpr (std::same_as<T, Disasm::Zpy>) {
-        format_to(
-          context.out(),
-          "${:02X} [=#${:02X}, y:#${:02X}, d:${:02X}]",
-          fetch.address,
-          fetch.data,
-          fetch.offset,
-          fetch.destination);
-      }
-
-      return context;
-    };
-
-    return std::visit(fetch_visitor, fetch).out();
-  }
-};
-
-template<>
-struct formatter<Disasm::Operation> {
-  template<typename P>
-  constexpr auto parse(P &context) {
-    return context.begin();
-  }
-
-  template<typename F>
-  constexpr auto format(const Disasm::Operation operation, F &context) const {
-    // Operation variant visitor
-    auto operation_visitor = [&context]<typename T>(T operation) -> F & {
-      if constexpr (std::same_as<T, Disasm::Transfer>) {
-        auto src = operation.source;
-        auto dst = operation.destination;
-
-        format_to(context.out(), "{}:{:02X} => {}:{:02X}", src.name, src.data, dst.name, dst.data);
-      }
-
-      if constexpr (std::same_as<T, Disasm::Stack>) {
-        format_to(
-          context.out(),
-          "{}",
-          operation.description,
-          "index"_a = (0xFD - operation.stack_pointer));
-      }
-
-      if constexpr (std::same_as<T, Disasm::Increment>) {
-        format_to(context.out(), "{}", operation.description, "data"_a = operation.data);
-      }
-
-      if constexpr (std::same_as<T, Disasm::BinaryOp>) {
-        format_to(
-          context.out(),
-          "{}",
-          operation.description,
-          "a"_a = operation.a,
-          "b"_a = operation.b);
-      }
-
-      if constexpr (std::same_as<T, Disasm::Shift>) {
-        format_to(context.out(), "{}", operation.description, "data"_a = operation.data);
-      }
-
-      if constexpr (std::same_as<T, Disasm::Flag>) {
-        format_to(context.out(), "{}", operation.description);
-      }
-
-      if constexpr (std::same_as<T, Disasm::Comparison>) {
-        // constexpr auto format_comparison = [&](char op, char result, std::string_view sep) {
-        //   format_to(context.out(), "{}: {} {} {}{}", result, operation.a, op, operation.b, sep);
-        // };
-
-        // constexpr auto do_comparison = []<auto expression>(char flags[2])->char {
-        //   return flags[expression];
-        // };
-
-        // format_comparison('<', do_comparison<(operation.a < operation.b)>("nN"), ", ");
-        // format_comparison('=', do_comparison<(operation.a == operation.b)>("zZ"), ", ");
-        // format_comparison('>', do_comparison<(operation.a > operation.b)>("cC"), ", ");
-      }
-
-      if constexpr (std::same_as<T, Disasm::Conditional>) {
-        format_to(context.out(), "{} ? {}", operation.description, operation.condition ? "y" : "n");
-      }
-
-      return context;
-    };
-
-    return std::visit(operation_visitor, operation).out();
-  }
-};
+namespace ranges = std::ranges;
 
 template<>
 struct formatter<Disasm::Bytes> {
-  template<typename P>
-  constexpr auto parse(P &context) {
+  constexpr auto parse(format_parse_context &context) {
     return context.begin();
   }
 
   template<typename F>
-  constexpr auto format_byte(const Disasm::Bytes &bytes, size_t i, F &context) const {
-    if (i > bytes.size()) {
+  auto format_byte(const Disasm::Bytes &bytes, size_t i, F &context) const {
+    if (i > bytes.size() - 1) {
       return format_to(context.out(), "__");
     } else {
       return format_to(context.out(), "{:02X}", bytes[i]);
@@ -366,8 +64,6 @@ struct formatter<Disasm::Bytes> {
 
   template<typename F>
   constexpr auto format(const Disasm::Bytes &bytes, F &context) const {
-    format_to(context.out(), "<");
-
     for (size_t i = 0; i < Instruction::max_size(); i++) {
       format_byte(bytes, i, context);
 
@@ -377,24 +73,88 @@ struct formatter<Disasm::Bytes> {
       }
     }
 
-    return format_to(context.out(), ">");
+    return context.out();
+  }
+};
+
+template<>
+struct formatter<Disasm::Fetch> {
+  constexpr auto parse(format_parse_context &context) {
+    return context.begin();
+  }
+
+  template<typename F>
+  constexpr auto format(const Disasm::Fetch &fetch, F &context) const {
+    const auto &[mode, desc, address, dst, offset, data] = fetch;
+
+    if (mode & (IND)) {
+      return format_to(context.out(), fmt::runtime(desc), address, data, dst);
+    }
+
+    if (mode & (REL)) {
+      return format_to(context.out(), fmt::runtime(desc), dst);
+    }
+
+    if (mode & (ACC | IMM)) {
+      return format_to(context.out(), fmt::runtime(desc), data);
+    }
+
+    if (mode & (ZER | ABS)) {
+      return format_to(context.out(), fmt::runtime(desc), address, data);
+    }
+
+    if (mode & (ABX | ABY | IDX | IDY | ZPX | ZPY)) {
+      return format_to(context.out(), fmt::runtime(desc), address, data, offset, dst);
+    }
+
+    return format_to(context.out(), fmt::runtime(desc));
+  }
+};
+
+template<>
+struct formatter<Disasm::Operation> {
+  constexpr auto parse(format_parse_context &context) {
+    return context.begin();
+  }
+
+  template<typename F>
+  constexpr auto format(const Disasm::Operation &operation, F &context) {
+    const auto &[mnemonic, desc, operands] = operation;
+
+    if (mnemonic & (TRANSFER | BINARY_OP)) {
+      return format_to(context.out(), fmt::runtime(desc), operands[0], operands[1]);
+    }
+
+    if (mnemonic & (LOAD | STORE | STACK | INCREMENT | SHIFT)) {
+      return format_to(context.out(), fmt::runtime(desc), operands[0]);
+    }
+
+    if (mnemonic & (CONDITIONAL)) {
+      return format_to(context.out(), fmt::runtime(desc), static_cast<bool>(operands[0]));
+    }
+
+    if (mnemonic & (COMPARISON)) {
+      const char &n = "nN"[operands[0] > operands[1]];
+      const char &c = "cC"[operands[0] < operands[1]];
+      const char &z = "zZ"[operands[0] == operands[1]];
+
+      return format_to(context.out(), fmt::runtime(desc), operands[0], operands[1], n, c, z);
+    }
+
+    return format_to(context.out(), fmt::runtime(desc));
   }
 };
 
 template<>
 struct formatter<Disasm> {
-  template<typename P>
-  constexpr auto parse(P &context) {
-    auto end = std::ranges::find(context, '}');
-    auto width_specifier = std::ranges::find(context, ':');
+  constexpr auto parse(format_parse_context &context) {
+    auto end = ranges::find(context, '}');
 
-    if (width_specifier != context.end()) {
-      std::string_view width_source {width_specifier + 1, end};
-      auto [_, status] = std::from_chars(width_source.begin(), width_source.end(), *m_width);
+    auto width_begin = ranges::find(context, '(');
+    auto width_close = ranges::find(context, ')');
 
-      if (status != std::errc {}) {
-        throw Exception {"Width specifier parsing failed from: '{}'", width_source};
-      }
+    if (width_begin != context.end() && width_close != context.end()) {
+      width = parse_int<int32>(width_begin + 1, width_close);
     }
 
     return end;
@@ -402,24 +162,32 @@ struct formatter<Disasm> {
 
   template<typename F>
   constexpr auto format(const Disasm &disasm, F &context) const {
-    size_t size {
-      formatted_size("{} {} {}", disasm.registers, disasm.bytes, disasm.fetch),
+    const auto &[registers, bytes, fetch, operation] = disasm;
+    Mnemonic mnemonic = operation.mnemonic;
+
+    size_t padding {
+      formatted_size("{} |{}| {} {}", registers, bytes, mnemonic, fetch),
     };
 
     auto status {
-      format_to_n(context.out(), size, "{} {} {}", disasm.registers, disasm.bytes, disasm.fetch),
+      format_to_n(context.out(), padding, "{} |{}| {} {}", registers, bytes, mnemonic, fetch),
     };
 
-    if (m_width.has_value()) {
-      format_to(context.out(), "| {:>{}}", disasm.operation, *m_width - size);
-    } else {
-      format_to(context.out(), "| {}", disasm.operation);
+    size_t operation_size = formatted_size("{}", operation);
+
+    if (operation_size > 0) {
+      if (width.has_value()) {
+        // Anchor the operation description to the right
+        format_to(context.out(), "{: >{}}", "> ", *width - padding - operation_size - 1);
+      }
+
+      format_to_n(context.out(), operation_size + 1, " {}", operation);
     }
 
     return context.out();
   }
 
-  std::optional<size_t> m_width {};
+  std::optional<int32> width {};
 };
 
 }  // namespace fmt

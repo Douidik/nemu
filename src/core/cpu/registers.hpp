@@ -35,14 +35,13 @@ struct formatter<CpuRegisters> {
     "NVUBDIZC",
   };
 
-  template<typename P>
-  constexpr auto parse(P &context) {
+  constexpr auto parse(format_parse_context &context) {
     return context.begin();
   }
 
   template<typename F>
   auto format_register(std::string_view name, auto data, uint8 width, auto sep, F &context) const {
-    return format_to(context.out(), "{}: ${:0{}X}{} ", name, data, width, sep);
+    return format_to(context.out(), "{}: ${:0{}X}{}", name, data, width, sep);
   }
 
   template<typename F>

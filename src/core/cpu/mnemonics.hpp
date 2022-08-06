@@ -1,6 +1,8 @@
 #ifndef NEMU_CPU_MNEMONICS_HPP
 #define NEMU_CPU_MNEMONICS_HPP
 
+#include <fmt/core.h>
+
 namespace nemu::mnemonics {
 
 enum Mnemonic {
@@ -79,6 +81,88 @@ enum Mnemonic {
   OTHER = ILL | BIT | NOP,
 };
 
-}  // namespace nemu::mnemonicos
+}  // namespace nemu::mnemonics
+
+namespace fmt {
+using namespace nemu::mnemonics;
+
+template<>
+struct formatter<Mnemonic> {
+  constexpr std::string_view name(Mnemonic mnemonic) const {
+    switch (mnemonic) {
+    case ILL: return "ILL";
+    case ADC: return "ADC";
+    case AND: return "AND";
+    case ASL: return "ASL";
+    case BCC: return "BCC";
+    case BCS: return "BCS";
+    case BEQ: return "BEQ";
+    case BIT: return "BIT";
+    case BMI: return "BMI";
+    case BNE: return "BNE";
+    case BPL: return "BPL";
+    case BRK: return "BRK";
+    case BVC: return "BVC";
+    case BVS: return "BVS";
+    case CLC: return "CLC";
+    case CLD: return "CLD";
+    case CLI: return "CLI";
+    case CLV: return "CLV";
+    case CMP: return "CMP";
+    case CPX: return "CPX";
+    case CPY: return "CPY";
+    case DEC: return "DEC";
+    case DEX: return "DEX";
+    case DEY: return "DEY";
+    case EOR: return "EOR";
+    case INC: return "INC";
+    case INX: return "INX";
+    case INY: return "INY";
+    case JMP: return "JMP";
+    case JSR: return "JSR";
+    case LDA: return "LDA";
+    case LDX: return "LDX";
+    case LDY: return "LDY";
+    case LSR: return "LSR";
+    case NOP: return "NOP";
+    case ORA: return "ORA";
+    case PHA: return "PHA";
+    case PHP: return "PHP";
+    case PLA: return "PLA";
+    case PLP: return "PLP";
+    case ROL: return "ROL";
+    case ROR: return "ROR";
+    case RTI: return "RTI";
+    case RTS: return "RTS";
+    case SBC: return "SBC";
+    case SEC: return "SEC";
+    case SED: return "SED";
+    case SEI: return "SEI";
+    case STA: return "STA";
+    case STX: return "STX";
+    case STY: return "STY";
+    case TAX: return "TAX";
+    case TAY: return "TAY";
+    case TSX: return "TSX";
+    case TXA: return "TXA";
+    case TXS: return "TXS";
+    case TYA: return "TYA";
+
+    default: return "?";
+    }
+  }
+
+  constexpr auto parse(format_parse_context &context) {
+    return context.begin();
+  }
+
+  template<typename F>
+  constexpr auto format(const Mnemonic &mnemonic, F &context) const {
+    std::string_view mn = name(mnemonic);
+    return format_to(context.out(), "{}", name(mnemonic));
+  }
+};
+  
+}  // namespace fmt
 
 #endif

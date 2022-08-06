@@ -14,12 +14,12 @@ enum class Mirror : uint8 {
 };
 
 enum PageSize : uint16 {
-  PRG_PAGE_SIZE = 16'384,
-  CHR_PAGE_SIZE = 8192,
+  PRG_PAGE_SIZE = 0x4000,
+  CHR_PAGE_SIZE = 0x2000,
 };
 
 struct RomMeta {
-  // _# are ignored fields, might be used for more advanced emulation
+  // _# are ignored fields, might be used later for more advanced emulation
 
   char magic[4];
   uint8 program_pages;
@@ -39,14 +39,14 @@ public:
   Rom() {}
   explicit Rom(std::span<uint8> data);
 
-  std::optional<uint8> cpu_peek(uint16 n) const;
-  std::optional<uint8> ppu_peek(uint16 n) const;
-
   uint8 cpu_write(uint16 n, uint8 data);
+  uint8 cpu_peek(uint16 n) const;
   uint8 cpu_read(uint16 n);
 
+  uint8 ppu_write(uint16 n, uint8 data);
+  uint8 ppu_peek(uint16 n) const;
   uint8 ppu_read(uint16 n);
-  
+
   inline const auto &meta() const {
     return m_meta;
   }

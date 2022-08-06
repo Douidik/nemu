@@ -1,9 +1,11 @@
 #include "app.hpp"
 #include "exception.hpp"
+#include "trace.hpp"
 #include <SDL2/SDL_timer.h>
 #include <ctime>
 #include <fstream>
 #include <functional>
+#include <limits>
 
 namespace nemu {
 
@@ -21,30 +23,27 @@ App::App(std::span<const char *> args) :
     m_status = AppStatus::EXITING;
   });
 
-  m_window.map_input(m_keymap.gamepad.a, [&gamepad = m_nes.gamepad(0)] {
-    gamepad.press_button(NES_GAMEPAD_A);
-  });
-  m_window.map_input(m_keymap.gamepad.b, [&gamepad = m_nes.gamepad(0)] {
-    gamepad.press_button(NES_GAMEPAD_B);
-  });
-  m_window.map_input(m_keymap.gamepad.select, [&gamepad = m_nes.gamepad(0)] {
-    gamepad.press_button(NES_GAMEPAD_SELECT);
-  });
-  m_window.map_input(m_keymap.gamepad.start, [&gamepad = m_nes.gamepad(0)] {
-    gamepad.press_button(NES_GAMEPAD_START);
-  });
-  m_window.map_input(m_keymap.gamepad.up, [&gamepad = m_nes.gamepad(0)] {
-    gamepad.press_button(NES_GAMEPAD_UP);
-  });
-  m_window.map_input(m_keymap.gamepad.down, [&gamepad = m_nes.gamepad(0)] {
-    gamepad.press_button(NES_GAMEPAD_DOWN);
-  });
-  m_window.map_input(m_keymap.gamepad.left, [&gamepad = m_nes.gamepad(0)] {
-    gamepad.press_button(NES_GAMEPAD_LEFT);
-  });
-  m_window.map_input(m_keymap.gamepad.right, [&gamepad = m_nes.gamepad(0)] {
-    gamepad.press_button(NES_GAMEPAD_RIGHT);
-  });
+  const std::unordered_map<uint32, GamepadButton> gamepad_keymap = {
+    {m_keymap.gamepad.a, NES_GAMEPAD_A},
+    {m_keymap.gamepad.b, NES_GAMEPAD_B},
+    {m_keymap.gamepad.select, NES_GAMEPAD_SELECT},
+    {m_keymap.gamepad.start, NES_GAMEPAD_START},
+    {m_keymap.gamepad.up, NES_GAMEPAD_UP},
+    {m_keymap.gamepad.down, NES_GAMEPAD_DOWN},
+    {m_keymap.gamepad.left, NES_GAMEPAD_LEFT},
+    {m_keymap.gamepad.right, NES_GAMEPAD_RIGHT},
+  };
+
+  for (const auto &[key, button] : gamepad_keymap) {
+    m_window.map_input(
+      key,
+      [&gamepad = m_nes.gamepad(0), button = button] {
+        gamepad.press_button(button);
+      },
+      [&gamepad = m_nes.gamepad(0), button = button] {
+        gamepad.release_button(button);
+      });
+  }
 }
 
 std::span<uint8> App::parse_rom_data(std::span<const char *> args) {
@@ -70,21 +69,35 @@ void App::run() {
   m_nes.init();
 
   uint32 cpu_instruction_counter {};
-  uint32 ticks = SDL_GetTicks();
+  uint32 nes_ticks = SDL_GetTicks();
+  uint32 app_ticks = SDL_GetTicks();
+
+  // f64 upms = 1.0 / m_nes.frequency<std::milli>();
+  // f64 upms = 1000.0 / NES_FREQUENCY_HZ;
+  // TODO: upms
+  f64 upms {};
+  f64 fpms = 1000.0 / 60.0;
 
   while (m_status != AppStatus::EXITING) {
-    trace_cpu(cpu_instruction_counter);
-
-    m_window.process_events();
-    m_window.process_inputs();
     m_nes.tick();
+    
+    // if (uint32 new_ticks = SDL_GetTicks(); (new_ticks - nes_ticks) >= upms) {
+    //   m_nes.tick();
 
-    // Cap the framerate to approximately 60 times per seconds (16ms delay)
-    if (uint32 new_ticks = SDL_GetTicks(); (new_ticks - ticks) >= (1000 / 16)) {
+    //   // Refresh nes ticks counter
+    //   nes_ticks = new_ticks;
+    // }
+
+    if (uint32 new_ticks = SDL_GetTicks(); (new_ticks - app_ticks) >= fpms) {
+      m_window.process_events();
+      m_window.process_inputs();
       m_window.draw_canvas(m_nes.ppu().render_canvas());
+
       // Refresh frame ticks counter
-      ticks = new_ticks;
+      app_ticks = new_ticks;
     }
+
+    // trace_cpu(cpu_instruction_counter);
   }
 
   std::fclose(m_trace_file);
@@ -96,15 +109,12 @@ std::string App::trace_filename() const {
 }
 
 void App::trace_cpu(uint32 &instruction_counter) {
-  constexpr size_t MAX_LINE_LENGTH {160};
   uint32 new_instruction_counter = m_nes.cpu().instruction_counter();
 
   // Trace the cpu status each time a new instruction is executed
   if (instruction_counter != new_instruction_counter) {
-    fmt::print(m_trace_file, "{:{}}", m_nes.cpu().disasm(), MAX_LINE_LENGTH);
-    // fmt::print(m_frame_file, "{}"
-
-    // fmt::print(m_trace_file, "{} {}\n", registers, disasm), std::fflush(m_trace_file);
+    fmt::print(m_trace_file, "{:(160)}\n", Trace {&m_nes}.disasm());
+    std::fflush(m_trace_file);
   }
 
   instruction_counter = new_instruction_counter;

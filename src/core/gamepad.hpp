@@ -6,7 +6,7 @@
 
 namespace nemu {
 
-enum GamepadInput : uint8 {
+enum GamepadButton : uint8 {
   NES_GAMEPAD_A = 1 << 0,
   NES_GAMEPAD_B = 1 << 1,
   NES_GAMEPAD_SELECT = 1 << 2,
@@ -24,7 +24,8 @@ public:
   void init() override;
   void tick() override;
 
-  uint8 press_button(GamepadInput input);
+  uint8 press_button(GamepadButton input);
+  uint8 release_button(GamepadButton input);
 
   inline uint8 bits() const {
     return m_bits;
@@ -34,11 +35,12 @@ public:
   uint8 cpu_read(uint16 n);
 
   inline auto zip() {
-    return std::forward_as_tuple(m_bits, m_shift, m_strobe);
+    return std::forward_as_tuple(m_bits, m_strobe, m_mask);
   }
 
 private:
-  uint8 m_bits, m_shift, m_strobe;
+  uint8 m_bits, m_strobe;
+  uint16 m_mask;
 };
 
 }  // namespace nemu
@@ -47,14 +49,14 @@ namespace sdata {
 using namespace nemu;
 
 template<>
-struct Serializer<Gamepad> : Scheme<Gamepad(uint8, uint8, uint8)> {
+struct Serializer<Gamepad> : Scheme<Gamepad(uint8, uint8, uint16)> {
   Map map(Gamepad &gamepad) {
-    auto [bits, shift, strobe] = gamepad.zip();
+    auto [bits, strobe, mask] = gamepad.zip();
 
     return {
       {"bits", bits},
-      {"shift", shift},
       {"strobe", strobe},
+      {"mask", mask},
     };
   }
 };

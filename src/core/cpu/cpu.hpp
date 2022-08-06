@@ -1,13 +1,15 @@
 #ifndef NEMU_CPU_HPP
 #define NEMU_CPU_HPP
 
-#include "disasm.hpp"
 #include "hardware.hpp"
+#include "instructions.hpp"
 #include "interrupt.hpp"
 #include "registers.hpp"
 #include <optional>
 
 namespace nemu {
+
+// TODO: create functions for shift operations (ASL, LSR, ROR, ROL)
 
 class Cpu : public Hardware<class Bus> {
 public:
@@ -19,18 +21,20 @@ public:
   void irq();
   void nmi();
 
-  Disasm disasm() const;
-
-  inline const auto registers() {
+  inline const auto &registers() const {
     return m_regs;
   }
 
-  inline uint32 cycles_remaining() {
+  inline uint32 cycles_remaining() const {
     return m_cycles_remaining;
   }
 
-  inline uint32 instruction_counter() {
+  inline uint32 instruction_counter() const {
     return m_instruction_counter;
+  }
+
+  inline uint16 program_counter() const {
+    return m_regs.pc;
   }
 
   inline auto zip() {
@@ -41,7 +45,7 @@ private:
   uint16 interrupt(Interrupt interrupt, uint16 pc);
 
   void parse_instruction(Instruction instruction);
-  uint16 read_address(Instruction instruction);
+  uint16 parse_address(Instruction instruction);
   auto execute_operation(Instruction instruction, uint16 operand) -> std::optional<uint8>;
 
   uint8 parse_operand(uint8 operand);
@@ -52,10 +56,6 @@ private:
 
   uint8 stack_push(uint8 data);
   uint8 stack_pop();
-
-  Disasm::Bytes disasm_bytes(Instruction instruction) const;
-  Disasm::Fetch disasm_fetch(Instruction instruction) const;
-  Disasm::Operation disasm_operation(Instruction instruction, Disasm::Fetch address) const;
 
   CpuRegisters m_regs;
   uint32 m_cycles_remaining, m_instruction_counter;

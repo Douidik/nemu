@@ -5,8 +5,13 @@
 #include "gamepad.hpp"
 #include "ppu/ppu.hpp"
 #include "rom.hpp"
+#include <concepts>
+#include <ratio>
 
 namespace nemu {
+
+// Nes tick frequency in MHZ
+constexpr uint64 NES_FREQUENCY_HZ = 1.79 * 1'000'000 * 3;
 
 class Nes : public Bus {
 public:
@@ -15,11 +20,12 @@ public:
   void init() override;
   void tick() override;
 
-  std::optional<uint8> cpu_peek(uint16 n) const override;
-  std::optional<uint8> ppu_peek(uint16 n) const;
-
   uint8 cpu_write(uint16 n, uint8 data) override;
+  uint8 cpu_peek(uint16 n) const override;
   uint8 cpu_read(uint16 n) override;
+
+  uint8 ppu_write(uint16 n, uint8 data);
+  uint8 ppu_peek(uint16 n) const;
   uint8 ppu_read(uint16 n);
 
   inline Gamepad &gamepad(uint8 n) {
@@ -36,6 +42,11 @@ public:
 
   inline auto zip() {
     return std::forward_as_tuple(m_cpu, m_ram, m_ppu, m_gamepads);
+  }
+
+  template<typename R>
+  constexpr auto frequency() const {
+    return NES_FREQUENCY_HZ * (R::num / R::den);
   }
 
 private:

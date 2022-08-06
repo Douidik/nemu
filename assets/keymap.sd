@@ -1,7 +1,7 @@
 keymap {
   gamepad {
-    a: 'X',
-    b: 'C',
+    a: 'x',
+    b: 'c',
     select: 'Backspace',
     start: 'Return',
     up: 'Up',

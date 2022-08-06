@@ -19,8 +19,13 @@ public:
   void end_context();
 
   void draw_canvas(const Canvas &canvas);
+
   void map_event(SDL_EventType type, std::function<void(const SDL_Event &)> fn);
-  void map_input(SDL_Keycode code, std::function<void()> fn);
+
+  void map_input(
+    SDL_Keycode code,
+    std::function<void()> on_pressed,
+    std::function<void()> on_released = []() {});
 
 private:
   void throw_context_exception();
@@ -28,7 +33,7 @@ private:
   uint32 m_width, m_height;
   std::string_view m_name;
   std::unordered_map<uint32, std::function<void(const SDL_Event &)>> m_events_cb;
-  std::unordered_map<uint32, std::function<void()>> m_inputs_cb;
+  std::unordered_map<uint32, std::pair<std::function<void()>, std::function<void()>>> m_inputs_cb;
 
   SDL_Window *m_window;
   SDL_Renderer *m_renderer;

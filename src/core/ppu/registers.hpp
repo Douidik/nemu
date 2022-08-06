@@ -14,25 +14,14 @@ union PpuScroll {
   uint16 bits;
 };
 
-struct PpuLatch {
-  inline bool use() {
-    return value = !value;
-  }
-
-  inline bool reset() {
-    return value = false;
-  }
-
-  bool value;
-};
-
 union PpuControl {
   struct {
-    uint8 nt_address : 3;
+    uint8 nt_address : 2;
     bool vram_increment : 1;
-    bool spr_address : 1;
-    bool bgr_address : 1;
+    bool spr_bank : 1;
+    bool bgr_bank : 1;
     bool spr_size : 1;
+    bool _ : 1;
     bool nmi : 1;
   };
 
@@ -67,9 +56,11 @@ union PpuStatus {
 };
 
 struct PpuRegisters {
-  uint16 address;
+  uint8 w;
+  uint8 buffer;
+  uint8 oam_address;
+  uint16 vram_address;
   PpuScroll scroll;
-  PpuLatch latch;
   PpuControl control;
   PpuMask mask;
   PpuStatus status;
@@ -81,12 +72,15 @@ namespace sdata {
 using namespace nemu;
 
 template<>
-struct Serializer<PpuRegisters> : Scheme<PpuRegisters(uint16, uint16, bool, uint8, uint8, uint8)> {
+struct Serializer<PpuRegisters> :
+    Scheme<PpuRegisters(uint8, uint8, uint8, uint16, uint16, uint8, uint8, uint8)> {
   Map map(PpuRegisters &registers) {
     return {
-      {"address", registers.address},
+      {"w", registers.w},
+      {"buffer", registers.buffer},
+      {"oam_address", registers.oam_address},
+      {"vram_address", registers.vram_address},
       {"scroll", registers.scroll.bits},
-      {"latch", registers.latch.value},
       {"control", registers.control.bits},
       {"mask", registers.mask.bits},
       {"status", registers.status.bits},

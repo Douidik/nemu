@@ -13,7 +13,6 @@ target_include_directories(
 
 target_link_libraries(
   nemu_core PUBLIC
-  magic_enum::magic_enum
   fmt::fmt
   sdata
 )

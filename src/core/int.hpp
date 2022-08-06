@@ -15,6 +15,9 @@ using int16 = int16_t;
 using int32 = int32_t;
 using int64 = int64_t;
 
+using f32 = float;
+using f64 = double;
+
 }  // namespace nemu
 
 #endif

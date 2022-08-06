@@ -18,8 +18,8 @@ public:
   void init() override;
   void tick() override;
 
-  std::optional<uint8> cpu_peek(uint16 n) const;
   uint8 cpu_write(uint16 n, uint8 data);
+  uint8 cpu_peek(uint16 n) const;
   uint8 cpu_read(uint16 n);
 
   inline const auto &regsiters() const {
@@ -33,8 +33,8 @@ public:
   Canvas render_canvas();
 
 private:
-  std::optional<uint8> ppu_peek() const;
   uint8 ppu_write(uint8 data);
+  uint8 ppu_peek() const;
   uint8 ppu_read();
 
   uint16 ppu_address();
@@ -46,10 +46,11 @@ private:
 
   PpuRegisters m_regs;
 
-  std::array<uint8, 2048> m_vram;
-  std::array<uint8, 32> m_colors;
+  std::array<uint8, 0x100> m_oam;
+  std::array<uint8, 0x800> m_vram;
+  std::array<uint8, 0x020> m_colors;
 
-  uint32 m_scanline, m_ticks, m_framecount;
+  int32 m_scanline, m_ticks, m_framecount;
   std::string_view m_timing;
 };
 

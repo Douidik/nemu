@@ -2,4 +2,5 @@
 *.nes
 logs/
 build/
+build-release/
 CMakeFiles

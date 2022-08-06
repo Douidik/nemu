@@ -6,28 +6,45 @@ namespace nemu {
 Gamepad::Gamepad(Nes *nes) : Hardware {nes} {}
 
 void Gamepad::init() {
-  m_bits = 0xFF;
+  m_bits = 0x00;
 }
 
 void Gamepad::tick() {
-  m_bits = 0xFF;
+  // m_bits = 0x00;
 }
 
-uint8 Gamepad::press_button(GamepadInput input) {
+uint8 Gamepad::press_button(GamepadButton input) {
   return m_bits |= input;
 }
 
+uint8 Gamepad::release_button(GamepadButton input) {
+  return m_bits &= ~input;
+}
+
 uint8 Gamepad::cpu_write(uint16 n, uint8 data) {
-  m_strobe = data & 0x01, m_shift = 0x00;
-  return {};
+  m_strobe = data;
+
+  if (m_strobe & 0b1) {
+    m_mask = 0b0000'0001;
+  }
+
+  return m_strobe;
 }
 
 uint8 Gamepad::cpu_read(uint16 n) {
-  if (!m_shift || m_strobe) {
-    return 0x01;
+  uint8 bit = 0b0;
+
+  if ((m_mask < 0b1'0000'0000) && (m_bits & m_mask)) {
+    bit |= 0b1;
   }
 
-  return m_bits & (1 << m_shift++);
+  m_mask = m_mask << 1;
+
+  if (m_strobe & 0b1) {
+    m_mask = 0b0000'0001;
+  }
+
+  return bit;
 }
 
 }  // namespace nemu

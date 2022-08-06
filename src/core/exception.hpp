@@ -13,7 +13,7 @@ class Exception : std::exception {
 
 public:
   Exception(auto description, auto... args) :
-    m_buffer {fmt::format(PATTERN, fmt::vformat(description, fmt::make_format_args(args)...))} {}
+    m_buffer {fmt::format(PATTERN, fmt::format(fmt::runtime(description), args...))} {}
 
   Exception(auto description) : m_buffer {fmt::format(PATTERN, description)} {}
 
