@@ -22,15 +22,12 @@ public:
 
 private:
   std::string trace_filename() const;
-  void trace_cpu(uint32 &instruction_counter);
-  std::span<uint8> parse_rom_data(std::span<const char *> args);
+  void trace_cpu(const Nes &nes, uint32 &instruction_counter);
+  std::vector<uint8> read_rom(std::span<const char *> args);
 
   Keymap m_keymap;
-  Rom m_rom;
-  Nes m_nes;
   Window m_window;
   std::span<const char *> m_args;
-  std::vector<uint8> m_rom_data;
   AppStatus m_status;
   std::FILE *m_trace_file;
 };

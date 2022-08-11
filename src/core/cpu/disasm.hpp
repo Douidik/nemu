@@ -10,7 +10,7 @@
 #include <fmt/format.h>
 #include <vector>
 
-namespace nemu {
+namespace nemu::cpu {
 
 struct Disasm {
   struct Bytes : std::vector<uint8> {
@@ -34,17 +34,19 @@ struct Disasm {
     uint8 operands[2];
   };
 
-  CpuRegisters registers;
+  cpu::Registers registers;
   Bytes bytes;
   Fetch fetch;
   Operation operation;
 };
 
-}  // namespace nemu
+}  // namespace nemu::cpu
 
 namespace fmt {
 
 using namespace nemu;
+using namespace nemu::cpu;
+
 namespace ranges = std::ranges;
 
 template<>

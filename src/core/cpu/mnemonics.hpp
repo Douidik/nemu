@@ -3,7 +3,7 @@
 
 #include <fmt/core.h>
 
-namespace nemu::mnemonics {
+namespace nemu::cpu {
 
 enum Mnemonic {
   ILL = 1UL << 0x00,
@@ -81,10 +81,11 @@ enum Mnemonic {
   OTHER = ILL | BIT | NOP,
 };
 
-}  // namespace nemu::mnemonics
+}  // namespace nemu::cpu
 
 namespace fmt {
-using namespace nemu::mnemonics;
+
+using namespace nemu::cpu;
 
 template<>
 struct formatter<Mnemonic> {
@@ -158,11 +159,10 @@ struct formatter<Mnemonic> {
 
   template<typename F>
   constexpr auto format(const Mnemonic &mnemonic, F &context) const {
-    std::string_view mn = name(mnemonic);
     return format_to(context.out(), "{}", name(mnemonic));
   }
 };
-  
+
 }  // namespace fmt
 
 #endif

@@ -6,9 +6,9 @@
 #include <fmt/format.h>
 #include <sdata.hpp>
 
-namespace nemu {
+namespace nemu::cpu {
 
-union CpuStatus {
+union Status {
   uint8 bits {};
 
   struct {
@@ -16,19 +16,21 @@ union CpuStatus {
   };
 };
 
-struct CpuRegisters {
-  CpuStatus status;
+struct Registers {
+  Status status;
   uint8 a, x, y, sp;
   uint16 pc;
 };
 
-}  // namespace nemu
+}  // namespace nemu::cpu
 
 namespace fmt {
+
 using namespace nemu;
+using namespace nemu::cpu;
 
 template<>
-struct formatter<CpuRegisters> {
+struct formatter<Registers> {
   // Set and disabled flags representation
   constexpr static std::string_view FLAGS[2] {
     "nvubdizc",
@@ -45,7 +47,7 @@ struct formatter<CpuRegisters> {
   }
 
   template<typename F>
-  auto format_status(CpuStatus status, auto sep, F &context) const {
+  auto format_status(Status status, auto sep, F &context) const {
     char output[] = "FL: ________", *iter = std::ranges::find(output, '_');
 
     for (uint8 n = 0; n < 8; n++) {
@@ -56,7 +58,7 @@ struct formatter<CpuRegisters> {
   }
 
   template<typename F>
-  constexpr auto format(const CpuRegisters &registers, F &context) const {
+  constexpr auto format(const Registers &registers, F &context) const {
     format_to(context.out(), "{{");
     {
       format_status(registers.status, ", ", context);
@@ -77,11 +79,13 @@ struct formatter<CpuRegisters> {
 }  // namespace fmt
 
 namespace sdata {
+
 using namespace nemu;
 
 template<>
-struct Serializer<CpuRegisters> : Scheme<CpuRegisters(uint8, uint8, uint8, uint8, uint8, uint16)> {
-  Map map(CpuRegisters &registers) {
+struct Serializer<cpu::Registers> :
+  Scheme<cpu::Registers(uint8, uint8, uint8, uint8, uint8, uint16)> {
+  Map map(cpu::Registers &registers) {
     return {
       {"status", registers.status.bits},
       {"a", registers.a},

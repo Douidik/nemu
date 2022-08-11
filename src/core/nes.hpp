@@ -3,15 +3,11 @@
 
 #include "bus.hpp"
 #include "gamepad.hpp"
+#include "ppu/dma.hpp"
 #include "ppu/ppu.hpp"
 #include "rom.hpp"
-#include <concepts>
-#include <ratio>
 
 namespace nemu {
-
-// Nes tick frequency in MHZ
-constexpr uint64 NES_FREQUENCY_HZ = 1.79 * 1'000'000 * 3;
 
 class Nes : public Bus {
 public:
@@ -36,23 +32,19 @@ public:
     return m_ppu;
   }
 
-  inline Rom &rom() {
-    return m_rom;
+  inline auto mapper() const {
+    return m_mapper;
   }
 
   inline auto zip() {
     return std::forward_as_tuple(m_cpu, m_ram, m_ppu, m_gamepads);
   }
 
-  template<typename R>
-  constexpr auto frequency() const {
-    return NES_FREQUENCY_HZ * (R::num / R::den);
-  }
-
 private:
   Ppu m_ppu;
-  Rom &m_rom;
   Gamepad m_gamepads[2];
+  std::shared_ptr<class Mapper> m_mapper;
+  std::optional<ppu::Dma> m_dma;
 };
 
 }  // namespace nemu

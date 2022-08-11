@@ -39,8 +39,7 @@ public:
   }
 
 private:
-  uint8 m_bits, m_strobe;
-  uint16 m_mask;
+  uint8 m_bits, m_strobe, m_mask;
 };
 
 }  // namespace nemu
@@ -49,7 +48,7 @@ namespace sdata {
 using namespace nemu;
 
 template<>
-struct Serializer<Gamepad> : Scheme<Gamepad(uint8, uint8, uint16)> {
+struct Serializer<Gamepad> : Scheme<Gamepad(uint8, uint8, uint8)> {
   Map map(Gamepad &gamepad) {
     auto [bits, strobe, mask] = gamepad.zip();
 

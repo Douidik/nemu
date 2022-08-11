@@ -1,11 +1,16 @@
 #include "ppu.hpp"
 #include "exception.hpp"
 #include "int.hpp"
+#include "mapper/mapper.hpp"
+#include "mapper/mapper_mmc1.hpp"
 #include "misc.hpp"
 #include "nes.hpp"
+#include "sprite.hpp"
 #include <tuple>
 
 namespace nemu {
+
+using namespace ppu;
 
 Ppu::Ppu(Nes *nes) : Hardware {nes} {}
 
@@ -24,20 +29,59 @@ void Ppu::init() {
 }
 
 void Ppu::tick() {
-  auto ppu_event = [this](
-                     std::string_view timing,
-                     std::optional<int32> ticks,
-                     std::optional<int32> scanline,
-                     auto event) {
-    if ((!ticks || m_ticks == ticks) && (!scanline || m_scanline == scanline)) {
-      m_timing = timing, event();
-    }
-  };
+  auto ppu_event =
+    [this](auto timing, std::optional<int32> ticks, std::optional<int32> scanline, auto event) {
+      if ((!ticks || m_ticks == ticks) && (!scanline || m_scanline == scanline)) {
+        event();
+      }
+    };
 
   ppu_event("render_first_tick", 0, 0, [this] {
-    if ((m_regs.mask.bgr_show) && (m_ticks & 0b1)) {
+    if ((m_regs.mask.bgr_show) && (m_framecount & 0b1)) {
       m_ticks = 1;  // Skipped on Odd + Background
     }
+  });
+
+  ppu_event("render_finished", 0, 240, [this] {
+    const auto &scroll = m_regs.scroll;
+    const auto &control = m_regs.control;
+
+    uint16 scroll_x = scroll.x + (control.nt_x * Canvas::W);
+    uint16 scroll_y = scroll.y + (control.nt_y * Canvas::H);
+
+    Canvas canvas_nt[2] = {{}, {}};
+
+    render_nametable(canvas_nt[0], 0);
+    render_nametable(canvas_nt[1], 1);
+
+    for (uint16 x = 0; x < Canvas::W; x++) {
+      for (uint16 y = 0; y < Canvas::H; y++) {
+        // Physical position wrapped around the two nametables
+        uint16 ph_x = (scroll_x + x) % (Canvas::W * 2);
+        uint16 ph_y = (scroll_y + y) % (Canvas::H * 2);
+
+        // Choose the source nametable depending on the current scrolling position
+        Canvas *source {};
+
+        switch (m_bus.mapper()->mirror()) {
+        case Mirror::HORIZONTAL: {
+          source = &canvas_nt[ph_y >= Canvas::H];
+        } break;
+
+        case Mirror::VERTICAL: {
+          source = &canvas_nt[ph_x >= Canvas::W];
+        } break;
+
+        default: {
+          source = &canvas_nt[0];
+        } break;
+        }
+
+        m_canvas.buffer[x][y] = source->buffer[ph_x % Canvas::W][ph_y % Canvas::H];
+      }
+    }
+
+    render_sprites(m_canvas);
   });
 
   ppu_event("set_vblank", 1, 241, [this] {
@@ -49,24 +93,34 @@ void Ppu::tick() {
   });
 
   ppu_event("end_vblank", 1, -1, [this] {
-    // TODO: sprite zero hit
     m_regs.status.vblank = 0;
+    m_regs.status.spr_zero_hit = 0;
   });
 
   // end_tick
   m_ticks++;
 
   ppu_event("end_frame", 341, 260, [this] {
-    m_scanline = -1, m_ticks = 1, m_framecount++;
+    m_regs.status.spr_zero_hit = 0, m_scanline = -1, m_ticks = 1, m_framecount++;
   });
 
   ppu_event("end_scaline", 341, std::nullopt, [this] {
+    Sprite spr_zero = {{m_oam[3], m_oam[0]}, m_oam[1], m_oam[2]};
+
+    m_regs.status.spr_zero_hit = {
+      m_regs.mask.spr_show && spr_zero.position[0] <= m_ticks && spr_zero.position[1] == m_scanline,
+    };
+
     m_scanline++, m_ticks = 0;
   });
 }
 
+uint8 Ppu::dma_write(uint8 n, uint8 data) {
+  return m_oam[n] = data;
+}
+
 uint8 Ppu::cpu_write(uint16 n, uint8 data) {
-  switch (n) {
+  switch (n & 0x2007) {
   case 0x2000: {
     return m_regs.control.bits = data;
   }
@@ -104,11 +158,11 @@ uint8 Ppu::cpu_write(uint16 n, uint8 data) {
   }
   }
 
-  throw Exception {"Out of bound PPU write from CPU: 0x{:04X}", n};
+  return {};
 }
 
 uint8 Ppu::cpu_peek(uint16 n) const {
-  switch (n) {
+  switch (n & 0x2007) {
   case 0x2000: {
     return m_regs.control.bits;
   }
@@ -154,7 +208,7 @@ uint8 Ppu::cpu_peek(uint16 n) const {
 }
 
 uint8 Ppu::cpu_read(uint16 n) {
-  switch (n) {
+  switch (n & 0x2007) {
   case 0x2002: {
     uint8 bits = m_regs.status.bits;
 
@@ -173,11 +227,7 @@ uint8 Ppu::cpu_read(uint16 n) {
   }
   }
 
-  throw Exception {"Out of bound PPU read from CPU: 0x{:04X}", n};
-}
-
-Canvas Ppu::render_canvas() {
-  return render_background();
+  return {};
 }
 
 uint8 Ppu::ppu_write(uint8 data) {
@@ -197,7 +247,7 @@ uint8 Ppu::ppu_write(uint8 data) {
   }
   }
 
-  throw Exception {"Out of bound PPU write (with address register) from CPU: 0x{:04X}", n};
+  return {};
 }
 
 uint8 Ppu::ppu_peek() const {
@@ -235,10 +285,6 @@ uint8 Ppu::ppu_read() {
   case 0x3F00 ... 0x3FFF: {
     output = m_regs.buffer = m_colors[color_address(n)];
   } break;
-
-  default: {
-    throw Exception {"Out of bound PPU read (with address register) from CPU: 0x{:04X}", n};
-  } break;
   }
 
   return output;
@@ -264,7 +310,7 @@ uint16 Ppu::vram_address(uint16 n) const {
   // Which nametable is selected [0-3]
   uint8 nametable = mapped / 0x400;
 
-  switch (m_bus.rom().mirror()) {
+  switch (m_bus.mapper()->mirror()) {
   case Mirror::HORIZONTAL: {
     switch (nametable) {
     case 0: return mapped - 0x000;  // A
@@ -282,6 +328,15 @@ uint16 Ppu::vram_address(uint16 n) const {
     case 3: return mapped - 0x800;  // B'
     }
   }
+
+    // NOTE: assume that both types or mirroring acts similarly 8==D
+
+  case Mirror::ONE_SCREEN_LO:
+  case Mirror::ONE_SCREEN_UP: {
+    return mapped & 0x03FF;
+  }
+
+  default: break;
   }
 
   return {};
@@ -302,12 +357,16 @@ uint16 Ppu::color_address(uint16 n) const {
   return mapped;
 }
 
-Canvas Ppu::render_background() {
-  Canvas canvas {};
+Canvas &Ppu::render_nametable(Canvas &canvas, uint8 n) const {
+  if (!m_regs.mask.bgr_show) {
+    // return canvas;
+  }
 
   uint8 bank = m_regs.control.bgr_bank;
-  const auto pattern = m_bus.rom().pattern(bank);
-  const auto &scroll = m_regs.scroll;
+  auto pattern = m_bus.mapper()->pattern(bank);
+
+  uint16 nt_base = n * 0x400;
+  uint16 ab_base = n * 0x400 + 0x3C0;
 
   for (uint16 i = 0; i < Canvas::W; i++) {
     for (uint16 j = 0; j < Canvas::H; j++) {
@@ -316,16 +375,8 @@ Canvas Ppu::render_background() {
       uint8 r = i % 8;
       uint8 c = j % 8;
 
-      // uint16 nt_index = (scroll.x + x) + (scroll.y + y) * Canvas::W / 8;
-
-      // // Access the second nametable
-      // if (nt_index > 0x38F) {
-      //   nt_index = (0x400 + (nt_index - 0x3C0)) % 0x800;
-      // }
-
-      // uint16 nt_value = m_vram[nt_index];
-
-      uint16 nt_value = m_vram[x + y * Canvas::W / 8];
+      uint16 nt_index = x + y * (Canvas::W / 8);
+      uint16 nt_value = m_vram[nt_base + nt_index];
 
       auto pattern_a = pattern.subspan(nt_value * 16 + 0, 8);
       auto pattern_b = pattern.subspan(nt_value * 16 + 8, 8);
@@ -338,17 +389,82 @@ Canvas Ppu::render_background() {
 
       uint8 quadrant = (half_a | half_b);
       uint8 ab_index = (x / 4) + (y / 4) * (Canvas::W / 8 / 4);
-      uint8 ab_value = (m_vram[0x3C0 + ab_index] >> (2 * quadrant)) & 0b11;
-      
-      canvas.buffer[i][j] = m_colors[(ab_value << 2) | (a | b)];
+      uint8 ab_value = (m_vram[ab_base + ab_index] >> (2 * quadrant)) & 0b11;
+
+      if (a | b) {
+        canvas.buffer[i][j] = m_colors[(ab_value << 2) | (a | b)];
+      } else {
+        // Draw background color
+        canvas.buffer[i][j] = m_colors[0x00];
+      }
     }
   }
 
   return canvas;
 }
 
-Canvas Ppu::render_foreground() {
-  return {};
+Canvas &Ppu::render_sprites(Canvas &canvas) const {
+  if (!m_regs.mask.spr_show) {
+    // return canvas;
+  }
+
+  auto render_sprite = [&](Sprite sprite, uint8 bank) {
+    auto pattern = m_bus.mapper()->pattern(bank);
+
+    auto pattern_a = pattern.subspan(sprite.index * 16 + 0, 8);
+    auto pattern_b = pattern.subspan(sprite.index * 16 + 8, 8);
+
+    for (uint8 c = 0; c < 8; c++) {
+      for (uint8 r = 0; r < 8; r++) {
+        uint16 x = sprite.position[0] + (sprite.ab.flip & 0b0'1 ? r : 7 - r);
+        uint16 y = sprite.position[1] + (sprite.ab.flip & 0b1'0 ? 7 - c : c);
+
+        if (y < 2 || x > Canvas::W || y > Canvas::H) {
+          return;
+        }
+
+        uint8 a = pattern_a[c] & (1 << r) ? 0b0'1 : 0b0'0;
+        uint8 b = pattern_b[c] & (1 << r) ? 0b1'0 : 0b0'0;
+
+        // To draw the sprite pixel it has to follow these requirements:
+        // - Being opaque
+        // - Sprite has the priority or Canvas background is transparent
+        if ((a | b) && (canvas.buffer[x][y] == m_colors[0x00] || sprite.ab.priority < 1)) {
+          canvas.buffer[x][y] = m_colors[0x10 + (sprite.ab.color << 2) | (a | b)];
+        }
+      }
+    }
+  };
+
+  if (!m_regs.control.spr_size) {
+    for (uint8 n = 64; n > 0; n--) {
+      render_sprite(Sprite::from_span({&m_oam[(n - 1) * 4], 4}), m_regs.control.spr_bank);
+    }
+  } else {
+    for (uint8 n = 64; n > 0; n--) {
+      Sprite sprite_a = Sprite::from_span({&m_oam[(n - 1) * 4], 4});
+      Sprite sprite_b = Sprite::from_span({&m_oam[(n - 1) * 4], 4});
+
+      // Should be the same
+      uint8 bank = (sprite_a.index & 0b1) | (sprite_b.index & 0b1);
+
+      // The index is stored in the upper 7 bits, sprite b takes the next index
+      sprite_a.index = (sprite_a.index >> 0) + 0;
+      sprite_b.index = (sprite_b.index >> 0) + 1;
+
+      // Vertical flip changes the position of sprite_b if it occupies an odd y position
+      if (sprite_b.ab.flip & 0b1'0) {
+        sprite_b.position[1] += 16;
+      } else {
+        sprite_b.position[1] += 8;
+      }
+
+      render_sprite(sprite_a, bank);
+      render_sprite(sprite_b, bank);
+    }
+  }
+
+  return canvas;
 }
 
 }  // namespace nemu

@@ -4,9 +4,9 @@
 #include "int.hpp"
 #include <sdata.hpp>
 
-namespace nemu {
+namespace nemu::ppu {
 
-union PpuScroll {
+union Scroll {
   struct {
     uint8 x, y;
   };
@@ -14,9 +14,10 @@ union PpuScroll {
   uint16 bits;
 };
 
-union PpuControl {
+union Control {
   struct {
-    uint8 nt_address : 2;
+    uint8 nt_x : 1;
+    uint8 nt_y : 1;
     bool vram_increment : 1;
     bool spr_bank : 1;
     bool bgr_bank : 1;
@@ -28,7 +29,7 @@ union PpuControl {
   uint8 bits;
 };
 
-union PpuMask {
+union Mask {
   struct {
     bool greyscale : 1;
     bool bgr_leftmost : 1;
@@ -43,7 +44,7 @@ union PpuMask {
   uint8 bits;
 };
 
-union PpuStatus {
+union Status {
   struct {
     uint8 _ : 5;
 
@@ -55,26 +56,27 @@ union PpuStatus {
   uint8 bits;
 };
 
-struct PpuRegisters {
+struct Registers {
   uint8 w;
   uint8 buffer;
   uint8 oam_address;
   uint16 vram_address;
-  PpuScroll scroll;
-  PpuControl control;
-  PpuMask mask;
-  PpuStatus status;
+  Scroll scroll;
+  Control control;
+  Mask mask;
+  Status status;
 };
 
-}  // namespace nemu
+}  // namespace nemu::ppu
 
 namespace sdata {
+
 using namespace nemu;
 
 template<>
-struct Serializer<PpuRegisters> :
-    Scheme<PpuRegisters(uint8, uint8, uint8, uint16, uint16, uint8, uint8, uint8)> {
-  Map map(PpuRegisters &registers) {
+struct Serializer<ppu::Registers> :
+  Scheme<ppu::Registers(uint8, uint8, uint8, uint16, uint16, uint8, uint8, uint8)> {
+  Map map(ppu::Registers &registers) {
     return {
       {"w", registers.w},
       {"buffer", registers.buffer},

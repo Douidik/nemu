@@ -1,7 +1,7 @@
 #ifndef NEMU_CPU_MODES_HPP
 #define NEMU_CPU_MODES_HPP
 
-namespace nemu::modes {
+namespace nemu::cpu {
 
 enum Mode {
   ACC = 1 << 0x00,

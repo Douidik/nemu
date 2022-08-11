@@ -18,6 +18,7 @@ public:
   void init() override;
   void tick() override;
 
+  uint8 dma_write(uint8 n, uint8 data);
   uint8 cpu_write(uint16 n, uint8 data);
   uint8 cpu_peek(uint16 n) const;
   uint8 cpu_read(uint16 n);
@@ -26,11 +27,9 @@ public:
     return m_regs;
   }
 
-  inline std::string_view timing() const {
-    return m_timing;
-  }
-
-  Canvas render_canvas();
+  inline Canvas canvas() const {
+    return m_canvas;
+  };
 
 private:
   uint8 ppu_write(uint8 data);
@@ -41,17 +40,17 @@ private:
   uint16 vram_address(uint16 n) const;
   uint16 color_address(uint16 n) const;
 
-  Canvas render_background();
-  Canvas render_foreground();
+  Canvas &render_nametable(Canvas &canvas, uint8 n) const;
+  Canvas &render_sprites(Canvas &canvas) const;
 
-  PpuRegisters m_regs;
+  ppu::Registers m_regs;
+  Canvas m_canvas {};
 
   std::array<uint8, 0x100> m_oam;
   std::array<uint8, 0x800> m_vram;
   std::array<uint8, 0x020> m_colors;
 
   int32 m_scanline, m_ticks, m_framecount;
-  std::string_view m_timing;
 };
 
 }  // namespace nemu

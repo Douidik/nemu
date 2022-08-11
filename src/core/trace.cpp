@@ -1,8 +1,9 @@
 #include "trace.hpp"
 
 namespace nemu {
+using namespace cpu;
 
-Trace::Trace(Bus *bus) : m_bus {*bus} {}
+Trace::Trace(const Bus *bus) : m_bus {*bus} {}
 
 Disasm Trace::disasm() const {
   uint8 opcode {
@@ -31,7 +32,7 @@ Disasm::Bytes Trace::disasm_bytes(const Disasm &disasm, size_t size) const {
   return bytes;
 }
 
-  Disasm::Fetch Trace::disasm_fetch(const Disasm &disasm, Mode mode) const {
+Disasm::Fetch Trace::disasm_fetch(const Disasm &disasm, Mode mode) const {
   const auto &registers = m_bus.cpu().registers();
   const auto &bytes = disasm.bytes;
 
@@ -205,7 +206,7 @@ Disasm::Operation Trace::disasm_operation(const Disasm &disasm, Mnemonic mnemoni
   };
 
   constexpr auto make_conditional =
-    [](Mnemonic mnemonic, const CpuRegisters &registers) -> Disasm::Operation {
+    [](Mnemonic mnemonic, const Registers &registers) -> Disasm::Operation {
     switch (mnemonic) {
     case BCC: return {BCC, "C ? {}", {registers.status.c}};
     case BEQ: return {BEQ, "Z ? {}", {registers.status.z}};
@@ -222,7 +223,7 @@ Disasm::Operation Trace::disasm_operation(const Disasm &disasm, Mnemonic mnemoni
   };
 
   constexpr auto make_transfer =
-    [](Mnemonic mnemonic, const CpuRegisters &registers) -> Disasm::Operation {
+    [](Mnemonic mnemonic, const Registers &registers) -> Disasm::Operation {
     switch (mnemonic) {
     case TAX: return {TAX, "a: #${:02X} => x: #${:02X}", {registers.a, registers.x}};
     case TAY: return {TAY, "a: #${:02X} => y: #${:02X}", {registers.a, registers.y}};

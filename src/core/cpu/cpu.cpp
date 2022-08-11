@@ -5,15 +5,14 @@
 
 namespace nemu {
 
-using namespace mnemonics;
-using namespace modes;
+using namespace cpu;
 
 Cpu::Cpu(Bus *bus) : Hardware {bus} {}
 
 void Cpu::init() {
   m_bus.ram() = {}, m_cycles_remaining = 0, m_instruction_counter = 0;
 
-  m_regs = CpuRegisters {
+  m_regs = Registers {
     .status = {},
     .a = 0x00,
     .x = 0x00,
@@ -26,7 +25,7 @@ void Cpu::init() {
 }
 
 void Cpu::tick() {
-  if (!m_cycles_remaining--) {
+  if (m_cycles_remaining-- < 1) {
     uint8 opcode = m_bus.cpu_read(m_regs.pc++);
     auto instruction = INSTRUCTION_SET[opcode];
     parse_instruction(instruction);

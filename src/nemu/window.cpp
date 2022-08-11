@@ -9,7 +9,7 @@ Window::Window(uint32 w, uint32 h, std::string_view name) :
   m_name {name} {}
 
 void Window::run_context() {
-  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER) != 0) {
+  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
     throw_context_exception();
   }
 

@@ -44,9 +44,9 @@ public:
 private:
   uint16 interrupt(Interrupt interrupt, uint16 pc);
 
-  void parse_instruction(Instruction instruction);
-  uint16 parse_address(Instruction instruction);
-  auto execute_operation(Instruction instruction, uint16 operand) -> std::optional<uint8>;
+  void parse_instruction(cpu::Instruction instruction);
+  uint16 parse_address(cpu::Instruction instruction);
+  auto execute_operation(cpu::Instruction instruction, uint16 operand) -> std::optional<uint8>;
 
   uint8 parse_operand(uint8 operand);
   uint8 add_with_carry(uint8 operand);
@@ -57,17 +57,20 @@ private:
   uint8 stack_push(uint8 data);
   uint8 stack_pop();
 
-  CpuRegisters m_regs;
-  uint32 m_cycles_remaining, m_instruction_counter;
+  cpu::Registers m_regs;
+  uint32 m_cycles_remaining;
+  uint32 m_instruction_counter;
 };
 
 }  // namespace nemu
 
 namespace sdata {
+  
 using namespace nemu;
+using namespace nemu::cpu;
 
 template<>
-struct Serializer<Cpu> : Scheme<Cpu(CpuRegisters, uint32, uint32)> {
+struct Serializer<Cpu> : Scheme<Cpu(Registers, uint32, uint32)> {
   Map map(Cpu &cpu) {
     auto [registers, cycles_remaining, instruction_counter] = cpu.zip();
 

@@ -2,47 +2,34 @@
 #define NEMU_MAPPER_HPP
 
 #include "int.hpp"
+#include "rom.hpp"
 #include <memory>
+#include <span>
 
 namespace nemu {
 
 class Mapper {
 public:
-  Mapper(uint8 program_pages, uint8 character_pages) :
-    m_program_pages {program_pages},
-    m_character_pages {character_pages} {}
+  Mapper(Rom &rom) : m_rom {rom} {}
 
-  static std::shared_ptr<Mapper> create(uint8 type, uint8 program_pages, uint8 character_pages);
+  virtual void init() {}
 
-  virtual uint32 map_program_peek(uint32 n) const = 0;
-  virtual uint32 map_character_peek(uint32 n) const = 0;
+  static std::shared_ptr<Mapper> create(Rom &rom);
 
-  virtual uint32 map_program(uint32 n) {
-    return {};
-  }
+  virtual Mirror mirror() const = 0;
 
-  virtual uint32 map_character(uint32 n) {
-    return {};
-  }
+  virtual uint8 *cpu_write(uint16 n, uint8 data) = 0;
+  virtual const uint8 *cpu_peek(uint16 n) const = 0;
+  virtual uint8 *cpu_read(uint16 n) = 0;
 
-  virtual uint32 map_program_read(uint32 n) {
-    return map_program(n);
-  }
+  virtual uint8 *ppu_write(uint16 n, uint8 data) = 0;
+  virtual const uint8 *ppu_peek(uint16 n) const = 0;
+  virtual uint8 *ppu_read(uint16 n) = 0;
 
-  virtual uint32 map_program_write(uint32 n) {
-    return map_program(n);
-  }
-
-  virtual uint32 map_character_read(uint32 n) {
-    return map_character(n);
-  }
-
-  virtual uint32 map_character_write(uint32 n) {
-    return map_character(n);
-  }
+  virtual std::span<const uint8> pattern(uint8 n) const = 0;
 
 protected:
-  uint8 m_program_pages, m_character_pages;
+  Rom &m_rom;
 };
 
 }  // namespace nemu
