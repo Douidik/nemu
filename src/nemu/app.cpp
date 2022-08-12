@@ -24,7 +24,7 @@ App::App(std::span<const char *> args) :
 
 std::vector<uint8> App::read_rom(std::span<const char *> args) {
   if (args.size() < 2) {
-    throw nemu::Exception {"Missing rom path argument"};
+    throw nemu::Exception {"Rom path unspecified"};
   }
 
   std::ifstream fstream {args[1], std::ios::binary};
@@ -37,7 +37,7 @@ std::vector<uint8> App::read_rom(std::span<const char *> args) {
 }
 
 void App::run() {
-  m_trace_file = std::fopen(trace_filename().data(), "w+");
+  //m_trace_file = std::fopen(trace_filename().data(), "w+");
   m_status = AppStatus::RUNNING;
 
   auto rom_data = read_rom(m_args);
@@ -98,7 +98,7 @@ void App::run() {
     time = new_time;
   }
 
-  std::fclose(m_trace_file);
+  //std::fclose(m_trace_file);
   m_window.end_context();
 }
 

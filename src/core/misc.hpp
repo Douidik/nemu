@@ -7,6 +7,15 @@
 
 namespace nemu {
 
+template<typename F, typename R = std::invoke_result_t<F>>
+constexpr auto invoke_default_value() -> R {
+  if constexpr (std::same_as<R, void>) {
+    return;
+  } else {
+    return R {};
+  }
+}
+
 template<std::integral T, std::integral N>
 constexpr auto pow(T x, N n) -> T {
   if (!n) {

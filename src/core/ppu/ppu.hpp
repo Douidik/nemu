@@ -2,6 +2,7 @@
 #define NEMU_PPU_HPP
 
 #include "hardware.hpp"
+#include "misc.hpp"
 #include "registers.hpp"
 #include <string_view>
 
@@ -27,11 +28,28 @@ public:
     return m_regs;
   }
 
-  inline Canvas canvas() const {
+  inline const Canvas &canvas() const {
     return m_canvas;
   };
 
 private:
+  template<typename F, typename R = std::invoke_result_t<F>>
+  auto ppu_event(
+    std::string_view timing,
+    std::optional<int32> ticks,
+    std::optional<int32> scanline,
+    F event) -> R {
+    if (ticks != std::nullopt && *ticks != m_ticks) {
+      return invoke_default_value<F>();
+    }
+
+    if (scanline != std::nullopt && *scanline != m_scanline) {
+      return invoke_default_value<F>();
+    }
+
+    return event();
+  }
+
   uint8 ppu_write(uint8 data);
   uint8 ppu_peek() const;
   uint8 ppu_read();
@@ -40,7 +58,8 @@ private:
   uint16 vram_address(uint16 n) const;
   uint16 color_address(uint16 n) const;
 
-  Canvas &render_nametable(Canvas &canvas, uint8 n) const;
+  Canvas &render_nametable(Canvas &canvas, uint8 n, int8 offset) const;
+  Canvas &render_background(Canvas &canvas) const;
   Canvas &render_sprites(Canvas &canvas) const;
 
   ppu::Registers m_regs;

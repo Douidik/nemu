@@ -29,13 +29,6 @@ void Ppu::init() {
 }
 
 void Ppu::tick() {
-  auto ppu_event =
-    [this](auto timing, std::optional<int32> ticks, std::optional<int32> scanline, auto event) {
-      if ((!ticks || m_ticks == ticks) && (!scanline || m_scanline == scanline)) {
-        event();
-      }
-    };
-
   ppu_event("render_first_tick", 0, 0, [this] {
     if ((m_regs.mask.bgr_show) && (m_framecount & 0b1)) {
       m_ticks = 1;  // Skipped on Odd + Background
@@ -43,44 +36,7 @@ void Ppu::tick() {
   });
 
   ppu_event("render_finished", 0, 240, [this] {
-    const auto &scroll = m_regs.scroll;
-    const auto &control = m_regs.control;
-
-    uint16 scroll_x = scroll.x + (control.nt_x * Canvas::W);
-    uint16 scroll_y = scroll.y + (control.nt_y * Canvas::H);
-
-    Canvas canvas_nt[2] = {{}, {}};
-
-    render_nametable(canvas_nt[0], 0);
-    render_nametable(canvas_nt[1], 1);
-
-    for (uint16 x = 0; x < Canvas::W; x++) {
-      for (uint16 y = 0; y < Canvas::H; y++) {
-        // Physical position wrapped around the two nametables
-        uint16 ph_x = (scroll_x + x) % (Canvas::W * 2);
-        uint16 ph_y = (scroll_y + y) % (Canvas::H * 2);
-
-        // Choose the source nametable depending on the current scrolling position
-        Canvas *source {};
-
-        switch (m_bus.mapper()->mirror()) {
-        case Mirror::HORIZONTAL: {
-          source = &canvas_nt[ph_y >= Canvas::H];
-        } break;
-
-        case Mirror::VERTICAL: {
-          source = &canvas_nt[ph_x >= Canvas::W];
-        } break;
-
-        default: {
-          source = &canvas_nt[0];
-        } break;
-        }
-
-        m_canvas.buffer[x][y] = source->buffer[ph_x % Canvas::W][ph_y % Canvas::H];
-      }
-    }
-
+    render_background(m_canvas);
     render_sprites(m_canvas);
   });
 
@@ -357,45 +313,47 @@ uint16 Ppu::color_address(uint16 n) const {
   return mapped;
 }
 
-Canvas &Ppu::render_nametable(Canvas &canvas, uint8 n) const {
+Canvas &Ppu::render_background(Canvas &canvas) const {
   if (!m_regs.mask.bgr_show) {
-    // return canvas;
+    return canvas;
   }
 
   uint8 bank = m_regs.control.bgr_bank;
   auto pattern = m_bus.mapper()->pattern(bank);
 
-  uint16 nt_base = n * 0x400;
-  uint16 ab_base = n * 0x400 + 0x3C0;
-
   for (uint16 i = 0; i < Canvas::W; i++) {
     for (uint16 j = 0; j < Canvas::H; j++) {
-      uint8 x = i / 8;
-      uint8 y = j / 8;
-      uint8 r = i % 8;
-      uint8 c = j % 8;
+      // Get the scroll wrapped around the two nametables
+      uint16 x = (m_regs.scroll.x + i + (m_regs.control.nt_x * Canvas::W)) % (Canvas::W * 2);
+      uint16 y = (m_regs.scroll.y + j + (m_regs.control.nt_y * Canvas::H)) % (Canvas::H * 2);
 
-      uint16 nt_index = x + y * (Canvas::W / 8);
-      uint16 nt_value = m_vram[nt_base + nt_index];
+      // Inner nametable tile coordinates
+      uint8 r = (x % Canvas::W) / 8;
+      uint8 c = (y % Canvas::H) / 8;
+
+      // Select from which nametable we are rendering depending on the current scroll
+      uint8 n = x >= Canvas::W || y >= Canvas::H;
+
+      uint16 nt_index = r + c * (Canvas::W / 8);
+      uint16 nt_value = m_vram[(n * 0x400) + nt_index];
 
       auto pattern_a = pattern.subspan(nt_value * 16 + 0, 8);
       auto pattern_b = pattern.subspan(nt_value * 16 + 8, 8);
 
-      uint8 a = pattern_a[c] & (1 << (7 - r)) ? 0b0'1 : 0b0'0;
-      uint8 b = pattern_b[c] & (1 << (7 - r)) ? 0b1'0 : 0b0'0;
+      uint8 a = pattern_a[y % 8] & (1 << (7 - x % 8)) ? 0b0'1 : 0b0'0;
+      uint8 b = pattern_b[y % 8] & (1 << (7 - x % 8)) ? 0b1'0 : 0b0'0;
 
-      uint8 half_a = (uint8(x / 2) & 0b1) ? 0b0'1 : 0b0'0;
-      uint8 half_b = (uint8(y / 2) & 0b1) ? 0b1'0 : 0b0'0;
+      uint8 half_a = (uint8(r / 2) & 0b1) ? 0b0'1 : 0b0'0;
+      uint8 half_b = (uint8(c / 2) & 0b1) ? 0b1'0 : 0b0'0;
 
       uint8 quadrant = (half_a | half_b);
-      uint8 ab_index = (x / 4) + (y / 4) * (Canvas::W / 8 / 4);
-      uint8 ab_value = (m_vram[ab_base + ab_index] >> (2 * quadrant)) & 0b11;
+      uint8 ab_index = (r / 4) + (c / 4) * (Canvas::W / 8 / 4);
+      uint8 ab_value = (m_vram[(n * 0x400 + 0x3C0) + ab_index] >> (2 * quadrant)) & 0b11;
 
       if (a | b) {
         canvas.buffer[i][j] = m_colors[(ab_value << 2) | (a | b)];
       } else {
-        // Draw background color
-        canvas.buffer[i][j] = m_colors[0x00];
+        canvas.buffer[i][j] = m_colors[0x00];  // Draw background color
       }
     }
   }
@@ -405,7 +363,7 @@ Canvas &Ppu::render_nametable(Canvas &canvas, uint8 n) const {
 
 Canvas &Ppu::render_sprites(Canvas &canvas) const {
   if (!m_regs.mask.spr_show) {
-    // return canvas;
+    return canvas;
   }
 
   auto render_sprite = [&](Sprite sprite, uint8 bank) {
@@ -420,15 +378,13 @@ Canvas &Ppu::render_sprites(Canvas &canvas) const {
         uint16 y = sprite.position[1] + (sprite.ab.flip & 0b1'0 ? 7 - c : c);
 
         if (y < 2 || x > Canvas::W || y > Canvas::H) {
-          return;
+          return;  // Sprite is not on the screen anymore
         }
 
         uint8 a = pattern_a[c] & (1 << r) ? 0b0'1 : 0b0'0;
         uint8 b = pattern_b[c] & (1 << r) ? 0b1'0 : 0b0'0;
 
-        // To draw the sprite pixel it has to follow these requirements:
-        // - Being opaque
-        // - Sprite has the priority or Canvas background is transparent
+        // The sprite either need to be opaque or have the priority to be displayed
         if ((a | b) && (canvas.buffer[x][y] == m_colors[0x00] || sprite.ab.priority < 1)) {
           canvas.buffer[x][y] = m_colors[0x10 + (sprite.ab.color << 2) | (a | b)];
         }
@@ -436,7 +392,7 @@ Canvas &Ppu::render_sprites(Canvas &canvas) const {
     }
   };
 
-  if (!m_regs.control.spr_size) {
+  if (m_regs.control.spr_size < 1) {
     for (uint8 n = 64; n > 0; n--) {
       render_sprite(Sprite::from_span({&m_oam[(n - 1) * 4], 4}), m_regs.control.spr_bank);
     }
