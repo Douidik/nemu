@@ -1,35 +1,38 @@
 #ifndef NEMU_APP_HPP
 #define NEMU_APP_HPP
 
-#include "keymap.hpp"
-#include "nes.hpp"
+#include "keyboard.hpp"
+#include "renderer.hpp"
+#include "user.hpp"
 #include "window.hpp"
-#include <vector>
+#include <span>
 
 namespace nemu {
 
-enum class AppStatus {
-  INITIALIZED,
-  RUNNING,
-  PAUSED,
-  EXITING,
+enum class State : uint32 {
+  INIT,
+  RUN,
+  PAUSE,
+  EXIT,
 };
 
 class App {
 public:
   App(std::span<const char *> args);
   void run();
-
+  
 private:
-  std::string trace_filename() const;
-  void trace_cpu(const Nes &nes, uint32 &instruction_counter);
-  std::vector<uint8> read_rom(std::span<const char *> args);
+  std::vector<uint8> parse_rom(std::string_view path) const;
 
-  Keymap m_keymap;
+  State m_state;
+  User m_user;
   Window m_window;
-  std::span<const char *> m_args;
-  AppStatus m_status;
-  std::FILE *m_trace_file;
+  Renderer m_renderer;
+  Keyboard m_keyboard;
+  std::vector<uint8> m_rom_data;
+
+  sdata::Node m_sdata;
+  std::string_view m_username;
 };
 
 }  // namespace nemu

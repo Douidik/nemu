@@ -28,10 +28,14 @@ public:
     return m_regs;
   }
 
-  inline const Canvas &canvas() const {
+  inline Canvas &canvas() {
     return m_canvas;
   };
 
+  inline int32 framecount() const {
+    return m_framecount;
+  }
+  
 private:
   template<typename F, typename R = std::invoke_result_t<F>>
   auto ppu_event(

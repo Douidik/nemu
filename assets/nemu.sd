@@ -1,0 +1,25 @@
+users {
+  programmer {
+    keymap {
+      gamepad {
+        a: 'C',
+        b: 'X',
+        select: 'Backspace',
+        start: 'Return',
+        up: 'Up',
+        down: 'Down',
+        left: 'Left',
+        right: 'Right'
+      },
+      app {
+        exit: 'Escape',
+        pause: 'Tab'
+      }
+    },
+    window {
+      width: 1920,
+      height: 1009,
+      options: 0
+    }
+  }
+}

@@ -4,6 +4,7 @@
 #include "exception.hpp"
 #include "int.hpp"
 #include <SDL2/SDL_keyboard.h>
+#include <SDL2/SDL_scancode.h>
 #include <sdata.hpp>
 
 namespace nemu {
@@ -14,7 +15,7 @@ struct Keymap {
   } gamepad;
 
   struct App {
-    int32 exit, pause, menu;
+    int32 exit, pause;
   } app;
 };
 
@@ -26,14 +27,14 @@ using namespace nemu;
 template<>
 struct Serializer<Keymap> : Convert<Keymap> {
   void encode(Node &node, const Keymap &keymap) {
-    auto to_node = [](uint32 code, std::string_view name) -> Node {
-      std::string_view keyname = SDL_GetKeyName(code);
+    auto to_node = [](uint32 scancode, std::string_view name) -> Node {
+      std::string_view keyname = SDL_GetScancodeName(SDL_Scancode(scancode));
 
       if (keyname.empty()) {
-        throw nemu::Exception {"Can't get keyname from #{}", code};
+        throw nemu::Exception {"Can't get keyname from #{}", scancode};
       }
 
-      return {name, SDL_GetKeyName(code)};
+      return {name, keyname};
     };
 
     const auto &gamepad = keymap.gamepad;
@@ -59,7 +60,6 @@ struct Serializer<Keymap> : Convert<Keymap> {
         {
           to_node(app.exit, "exit"),
           to_node(app.pause, "pause"),
-          to_node(app.menu, "menu"),
         },
       }};
   }
@@ -67,13 +67,13 @@ struct Serializer<Keymap> : Convert<Keymap> {
   void decode(const Node &node, Keymap &keymap) {
     auto from_node = [](const Node &node, std::string_view name) -> int32 {
       auto keyname = node.at(name).get<std::string_view>();
-      uint32 keycode = SDL_GetKeyFromName(keyname.data());
+      uint32 scancode = SDL_GetScancodeFromName(keyname.data());
 
-      if (keycode == SDLK_UNKNOWN) {
-        throw nemu::Exception {"Can't get keycode from: '{}'", keyname};
+      if (!scancode) {
+        throw nemu::Exception {"Can't get scancode from: '{}'", keyname};
       }
 
-      return keycode;
+      return scancode;
     };
 
     const auto &gamepad = node.at("gamepad");
@@ -94,7 +94,6 @@ struct Serializer<Keymap> : Convert<Keymap> {
       .app {
         from_node(app, "exit"),
         from_node(app, "pause"),
-        from_node(app, "menu"),
       },
     };
   }

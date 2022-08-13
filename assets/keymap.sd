@@ -12,6 +12,5 @@ keymap {
   app {
     exit: 'Escape',
     pause: 'Tab',
-    menu: ';'
   }
 }

@@ -7,7 +7,7 @@ endif()
 
 include(${CPM_FILEPATH})
 
-cpmaddpackage("gh:douidik/sdata#v1.0.7")
+cpmaddpackage("gh:douidik/sdata#v1.0.8")
 cpmaddpackage("gh:fmtlib/fmt#8.1.1")
 cpmaddpackage("gh:LIBSDL-ORG/SDL#2.0.22")
 cpmaddpackage("gh:catchorg/catch2#v2.13.8")

@@ -24,8 +24,8 @@ public:
   uint8 ppu_peek(uint16 n) const;
   uint8 ppu_read(uint16 n);
 
-  inline Gamepad &gamepad(uint8 n) {
-    return m_gamepads[n];
+  inline auto &gamepads() {
+    return m_gamepads;
   }
 
   inline Ppu &ppu() {

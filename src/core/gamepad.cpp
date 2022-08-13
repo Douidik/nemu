@@ -9,7 +9,9 @@ void Gamepad::init() {
   m_bits = 0x00, m_strobe = 0x00, m_mask = 0b0000'0001;
 }
 
-void Gamepad::tick() {}
+void Gamepad::tick() {
+  // m_bits = 0x00;
+}
 
 uint8 Gamepad::press_button(GamepadButton input) {
   return m_bits |= input;
