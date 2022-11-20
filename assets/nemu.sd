@@ -18,7 +18,7 @@ users {
     },
     window {
       width: 1920,
-      height: 1009,
+      height: 1016,
       options: 0
     }
   }

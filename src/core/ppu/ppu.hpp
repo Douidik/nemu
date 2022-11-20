@@ -5,6 +5,7 @@
 #include "misc.hpp"
 #include "registers.hpp"
 #include <string_view>
+#include <array>
 
 namespace nemu {
 
