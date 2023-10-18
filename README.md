@@ -6,6 +6,7 @@ Nemu is an open-source NES emulator written in modern C++.
 - Hardware accurate emulation.
 - Customizable configuration with .sd files.
 - Support for MMC1 mapper games.
+- Disassemble 6502 code.
 
 ## Getting started
 ```shell
