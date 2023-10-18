@@ -56,7 +56,7 @@ void Renderer::setup(Window &window) {
 void Renderer::draw(const WindowInfo &window_info, Canvas &canvas, uint64 fps) {
   SDL_RenderClear(m_renderer);
   {
-    draw_fps(window_info, canvas, fps);
+    //draw_fps(window_info, canvas, fps);
     draw_nes(window_info, canvas);
 
     int32 height = window_info.height;

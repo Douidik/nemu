@@ -9,5 +9,5 @@ include(${CPM_FILEPATH})
 
 cpmaddpackage("gh:douidik/sdata#v1.0.8")
 cpmaddpackage("gh:fmtlib/fmt#8.1.1")
-cpmaddpackage("gh:LIBSDL-ORG/SDL#2.0.22")
+cpmaddpackage("gh:libsdl-org/SDL#release-2.28.4")
 cpmaddpackage("gh:catchorg/catch2#v2.13.8")
